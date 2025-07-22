@@ -22,7 +22,12 @@
   - Write unit tests for all value objects
   - _Requirements: 3.4, 8.1_
 
-- [ ] 3. Create domain events infrastructure
+- [x] 3. Create domain events infrastructure
+
+
+
+
+
   - Implement base DomainEvent abstract record
   - Create ProductCreatedEvent, OrderPlacedEvent, and CustomerRegisteredEvent
   - Implement domain event collection mechanism in base aggregate
