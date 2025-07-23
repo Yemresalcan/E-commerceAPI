@@ -1,0 +1,11 @@
+namespace ECommerce.Application.Interfaces;
+
+/// <summary>
+/// Handler interface for queries that return a value
+/// </summary>
+/// <typeparam name="TQuery">The type of query to handle</typeparam>
+/// <typeparam name="TResponse">The type of response returned by the query</typeparam>
+public interface IQueryHandler<in TQuery, TResponse> : IRequestHandler<TQuery, TResponse>
+    where TQuery : IQuery<TResponse>
+{
+}

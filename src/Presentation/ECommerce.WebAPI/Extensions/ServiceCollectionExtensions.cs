@@ -1,3 +1,5 @@
+using ECommerce.Application;
+
 namespace ECommerce.WebAPI.Extensions;
 
 /// <summary>
@@ -13,7 +15,7 @@ public static class ServiceCollectionExtensions
     /// <returns>The service collection for chaining</returns>
     public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
     {
-        // This will be implemented in later tasks
+        services.AddApplication();
         return services;
     }
 

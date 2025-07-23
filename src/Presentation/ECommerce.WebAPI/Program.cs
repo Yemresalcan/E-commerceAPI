@@ -8,6 +8,9 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Add application services
+builder.Services.AddApplicationServices(builder.Configuration);
+
 // Add database services
 builder.Services.AddDatabase(builder.Configuration);
 

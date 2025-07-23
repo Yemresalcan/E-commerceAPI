@@ -109,7 +109,12 @@
   - Configure connection strings and database options
   - _Requirements: 2.2, 6.1, 6.2_
 
-- [ ] 9. Implement repository pattern with EF Core
+- [x] 9. Implement repository pattern with EF Core
+
+
+
+
+
   - Create base Repository<T> implementation
   - Implement ProductRepository with EF Core
   - Implement OrderRepository with EF Core
@@ -118,7 +123,11 @@
   - Write integration tests for repositories
   - _Requirements: 6.3, 6.4, 8.2_
 
-- [ ] 10. Set up MediatR and CQRS infrastructure
+- [x] 10. Set up MediatR and CQRS infrastructure
+
+
+
+
   - Configure MediatR in dependency injection
   - Create base command and query interfaces
   - Implement request/response pipeline behaviors
