@@ -74,7 +74,12 @@
   - Write comprehensive unit tests for Order aggregate
   - _Requirements: 3.2, 3.6, 8.1_
 
-- [ ] 6. Implement Customer aggregate
+- [x] 6. Implement Customer aggregate
+
+
+
+
+
   - Create Customer entity as aggregate root
   - Create Address entity with validation
   - Create Profile entity for customer preferences
