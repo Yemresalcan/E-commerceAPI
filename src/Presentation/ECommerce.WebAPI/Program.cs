@@ -1,3 +1,4 @@
+using ECommerce.Infrastructure.Persistence;
 using ECommerce.WebAPI.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -7,8 +8,12 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// Add database services
+builder.Services.AddDatabase(builder.Configuration);
+
 // Configure health checks
-builder.Services.AddHealthChecks();
+builder.Services.AddHealthChecks()
+    .AddNpgSql(builder.Configuration.GetConnectionString("DefaultConnection")!);
 
 var app = builder.Build();
 
@@ -23,5 +28,8 @@ app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
 app.MapHealthChecks("/health");
+
+// Ensure database is created and migrations are applied
+await DatabaseConfiguration.EnsureDatabaseCreatedAsync(app.Services);
 
 app.Run();

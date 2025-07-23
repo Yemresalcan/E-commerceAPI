@@ -98,7 +98,11 @@
   - Create repository specifications for complex queries
   - _Requirements: 6.3, 6.4_
 
-- [ ] 8. Set up Entity Framework Core 9 infrastructure
+- [x] 8. Set up Entity Framework Core 9 infrastructure
+
+
+
+
   - Create ECommerceDbContext with proper entity configurations
   - Implement entity type configurations for all aggregates
   - Create database migrations for initial schema

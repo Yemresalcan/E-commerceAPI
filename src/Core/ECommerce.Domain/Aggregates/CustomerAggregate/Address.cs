@@ -16,6 +16,11 @@ public enum AddressType
 public class Address : Entity
 {
     /// <summary>
+    /// The customer this address belongs to
+    /// </summary>
+    public Guid CustomerId { get; private set; }
+
+    /// <summary>
     /// Address type (shipping, billing, or both)
     /// </summary>
     public AddressType Type { get; private set; }
