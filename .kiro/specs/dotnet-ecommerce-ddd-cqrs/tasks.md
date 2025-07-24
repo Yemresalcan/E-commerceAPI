@@ -148,7 +148,15 @@
   - Write unit tests for product command handlers
   - _Requirements: 4.1, 5.2, 8.1_
 
-- [ ] 12. Implement order commands and handlers
+- [x] 12. Implement order commands and handlers
+
+
+
+
+
+
+
+
   - Create PlaceOrderCommand with validation
   - Create UpdateOrderStatusCommand with validation
   - Create CancelOrderCommand with validation
