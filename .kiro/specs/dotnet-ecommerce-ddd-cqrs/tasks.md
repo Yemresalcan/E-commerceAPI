@@ -164,7 +164,14 @@
   - Write unit tests for order command handlers
   - _Requirements: 4.1, 5.2, 8.1_
 
-- [ ] 13. Implement customer commands and handlers
+- [x] 13. Implement customer commands and handlers
+
+
+
+
+
+
+
   - Create RegisterCustomerCommand with validation
   - Create UpdateCustomerProfileCommand with validation
   - Create AddCustomerAddressCommand with validation
