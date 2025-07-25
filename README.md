@@ -100,6 +100,10 @@ dotnet test
 
 
 
+
+The CQRS pattern separates read and write operations, allowing for independent scaling and optimization of each concern.
+
+
 ## Contributing
 
 Please follow the established patterns and ensure all tests pass before submitting changes.
