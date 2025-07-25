@@ -179,7 +179,9 @@
   - Write unit tests for customer command handlers
   - _Requirements: 4.1, 5.2, 8.1_
 
-- [ ] 14. Set up Elasticsearch infrastructure
+- [x] 14. Set up Elasticsearch infrastructure
+
+
 
 
 
@@ -194,7 +196,12 @@
   - Create search service interfaces and implementations
   - _Requirements: 2.4, 4.2, 6.5_
 
-- [ ] 15. Implement query handlers for read operations
+- [x] 15. Implement query handlers for read operations
+
+
+
+
+
   - Create GetProductsQuery with pagination and filtering
   - Create SearchProductsQuery with Elasticsearch
   - Create GetOrderQuery and GetOrdersQuery

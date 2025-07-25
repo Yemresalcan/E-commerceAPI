@@ -1,4 +1,6 @@
+using ECommerce.Application.Interfaces;
 using ECommerce.ReadModel.Configuration;
+using ECommerce.ReadModel.Mappings;
 using ECommerce.ReadModel.Services;
 using Microsoft.Extensions.Configuration;
 
@@ -28,10 +30,18 @@ public static class DependencyInjection
             return factory.CreateClient();
         });
 
+        // Register AutoMapper
+        services.AddAutoMapper(typeof(ReadModelMappingProfile));
+
         // Register search services
         services.AddScoped<IProductSearchService, ProductSearchService>();
         services.AddScoped<IOrderSearchService, OrderSearchService>();
         services.AddScoped<ICustomerSearchService, CustomerSearchService>();
+
+        // Register query services (Application layer interfaces)
+        services.AddScoped<IProductQueryService, ProductQueryService>();
+        services.AddScoped<IOrderQueryService, OrderQueryService>();
+        services.AddScoped<ICustomerQueryService, CustomerQueryService>();
 
         // Register index management service
         services.AddScoped<IIndexManagementService, IndexManagementService>();
