@@ -98,11 +98,7 @@ dotnet test
 - API documentation with Swagger
 - Containerized deployment
 
-## Development
 
-This solution is designed to be maintainable, testable, and scalable. Each layer has clear responsibilities and dependencies flow inward following the dependency inversion principle.
-
-The CQRS pattern separates read and write operations, allowing for independent scaling and optimization of each concern.
 
 ## Contributing
 

@@ -1,4 +1,5 @@
 using ECommerce.Infrastructure.Persistence;
+using ECommerce.ReadModel;
 using ECommerce.WebAPI.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -34,5 +35,8 @@ app.MapHealthChecks("/health");
 
 // Ensure database is created and migrations are applied
 await DatabaseConfiguration.EnsureDatabaseCreatedAsync(app.Services);
+
+// Ensure Elasticsearch indices are created
+await app.Services.EnsureIndicesCreatedAsync();
 
 app.Run();

@@ -1,4 +1,5 @@
 using ECommerce.Application;
+using ECommerce.ReadModel;
 
 namespace ECommerce.WebAPI.Extensions;
 
@@ -16,6 +17,7 @@ public static class ServiceCollectionExtensions
     public static IServiceCollection AddApplicationServices(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddApplication();
+        services.AddReadModelServices(configuration);
         return services;
     }
 

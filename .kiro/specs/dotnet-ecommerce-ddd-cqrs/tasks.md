@@ -180,6 +180,14 @@
   - _Requirements: 4.1, 5.2, 8.1_
 
 - [ ] 14. Set up Elasticsearch infrastructure
+
+
+
+
+
+
+
+
   - Configure Elasticsearch client and connection
   - Create read model classes for Product, Order, Customer
   - Implement Elasticsearch index configurations
