@@ -1,3 +1,4 @@
+using ECommerce.Infrastructure;
 using ECommerce.Infrastructure.Persistence;
 using ECommerce.ReadModel;
 using ECommerce.WebAPI.Extensions;
@@ -14,6 +15,9 @@ builder.Services.AddApplicationServices(builder.Configuration);
 
 // Add database services
 builder.Services.AddDatabase(builder.Configuration);
+
+// Add infrastructure services (messaging, caching, etc.)
+builder.Services.AddInfrastructure(builder.Configuration);
 
 // Configure health checks
 builder.Services.AddHealthChecks()
@@ -38,5 +42,8 @@ await DatabaseConfiguration.EnsureDatabaseCreatedAsync(app.Services);
 
 // Ensure Elasticsearch indices are created
 await app.Services.EnsureIndicesCreatedAsync();
+
+// Configure infrastructure services
+await app.Services.ConfigureInfrastructureAsync();
 
 app.Run();
