@@ -12,13 +12,16 @@ public class ProductCreatedEventHandler : IEventHandler<ProductCreatedEvent>
 {
     private readonly ILogger<ProductCreatedEventHandler> _logger;
     private readonly IProductSearchService _productSearchService;
+    private readonly ICacheInvalidationService _cacheInvalidationService;
 
     public ProductCreatedEventHandler(
         ILogger<ProductCreatedEventHandler> logger,
-        IProductSearchService productSearchService)
+        IProductSearchService productSearchService,
+        ICacheInvalidationService cacheInvalidationService)
     {
         _logger = logger;
         _productSearchService = productSearchService;
+        _cacheInvalidationService = cacheInvalidationService;
     }
 
     /// <inheritdoc />
@@ -62,6 +65,12 @@ public class ProductCreatedEventHandler : IEventHandler<ProductCreatedEvent>
             {
                 _logger.LogWarning("Failed to index product {ProductId} in Elasticsearch", domainEvent.ProductId);
             }
+
+            // Invalidate product cache
+            await _cacheInvalidationService.InvalidateProductCacheAsync(
+                domainEvent.ProductId, 
+                domainEvent.CategoryId, 
+                cancellationToken);
             
             _logger.LogInformation("Successfully processed ProductCreatedEvent for product {ProductId}", 
                 domainEvent.ProductId);

@@ -12,13 +12,16 @@ public class CustomerRegisteredEventHandler : IEventHandler<CustomerRegisteredEv
 {
     private readonly ILogger<CustomerRegisteredEventHandler> _logger;
     private readonly ICustomerSearchService _customerSearchService;
+    private readonly ICacheInvalidationService _cacheInvalidationService;
 
     public CustomerRegisteredEventHandler(
         ILogger<CustomerRegisteredEventHandler> logger,
-        ICustomerSearchService customerSearchService)
+        ICustomerSearchService customerSearchService,
+        ICacheInvalidationService cacheInvalidationService)
     {
         _logger = logger;
         _customerSearchService = customerSearchService;
+        _cacheInvalidationService = cacheInvalidationService;
     }
 
     /// <inheritdoc />
@@ -74,6 +77,11 @@ public class CustomerRegisteredEventHandler : IEventHandler<CustomerRegisteredEv
             {
                 _logger.LogWarning("Failed to index customer {CustomerId} in Elasticsearch", domainEvent.CustomerId);
             }
+
+            // Invalidate customer cache
+            await _cacheInvalidationService.InvalidateCustomerCacheAsync(
+                domainEvent.CustomerId, 
+                cancellationToken);
             
             _logger.LogInformation("Successfully processed CustomerRegisteredEvent for customer {CustomerId}", 
                 domainEvent.CustomerId);

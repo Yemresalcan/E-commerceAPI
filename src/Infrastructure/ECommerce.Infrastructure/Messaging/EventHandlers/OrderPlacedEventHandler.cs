@@ -12,13 +12,16 @@ public class OrderPlacedEventHandler : IEventHandler<OrderPlacedEvent>
 {
     private readonly ILogger<OrderPlacedEventHandler> _logger;
     private readonly IOrderSearchService _orderSearchService;
+    private readonly ICacheInvalidationService _cacheInvalidationService;
 
     public OrderPlacedEventHandler(
         ILogger<OrderPlacedEventHandler> logger,
-        IOrderSearchService orderSearchService)
+        IOrderSearchService orderSearchService,
+        ICacheInvalidationService cacheInvalidationService)
     {
         _logger = logger;
         _orderSearchService = orderSearchService;
+        _cacheInvalidationService = cacheInvalidationService;
     }
 
     /// <inheritdoc />
@@ -60,6 +63,12 @@ public class OrderPlacedEventHandler : IEventHandler<OrderPlacedEvent>
             {
                 _logger.LogWarning("Failed to index order {OrderId} in Elasticsearch", domainEvent.OrderId);
             }
+
+            // Invalidate order cache
+            await _cacheInvalidationService.InvalidateOrderCacheAsync(
+                domainEvent.OrderId, 
+                domainEvent.CustomerId, 
+                cancellationToken);
             
             _logger.LogInformation("Successfully processed OrderPlacedEvent for order {OrderId}", 
                 domainEvent.OrderId);

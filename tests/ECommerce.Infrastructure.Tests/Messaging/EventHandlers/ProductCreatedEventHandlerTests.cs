@@ -1,3 +1,4 @@
+using ECommerce.Application.Interfaces;
 using ECommerce.Domain.Events;
 using ECommerce.Infrastructure.Messaging.EventHandlers;
 using ECommerce.ReadModel.Models;
@@ -20,7 +21,8 @@ public class ProductCreatedEventHandlerTests
     {
         _loggerMock = new Mock<ILogger<ProductCreatedEventHandler>>();
         _productSearchServiceMock = new Mock<IProductSearchService>();
-        _handler = new ProductCreatedEventHandler(_loggerMock.Object, _productSearchServiceMock.Object);
+        var cacheInvalidationServiceMock = new Mock<ICacheInvalidationService>();
+        _handler = new ProductCreatedEventHandler(_loggerMock.Object, _productSearchServiceMock.Object, cacheInvalidationServiceMock.Object);
     }
 
     [Fact]

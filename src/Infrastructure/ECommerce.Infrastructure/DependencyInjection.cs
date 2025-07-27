@@ -1,5 +1,8 @@
+using ECommerce.Application.Interfaces;
+using ECommerce.Infrastructure.Caching;
 using ECommerce.Infrastructure.Messaging;
 using Microsoft.Extensions.Configuration;
+using StackExchange.Redis;
 
 namespace ECommerce.Infrastructure;
 
@@ -21,7 +24,10 @@ public static class DependencyInjection
         // Add messaging services
         services.AddRabbitMQMessaging(configuration);
 
-        // TODO: Add other infrastructure services (persistence, caching, etc.)
+        // Add caching services
+        services.AddRedisCaching(configuration);
+
+        // TODO: Add other infrastructure services (persistence, etc.)
 
         return services;
     }
@@ -37,5 +43,45 @@ public static class DependencyInjection
         await Messaging.DependencyInjection.ConfigureEventSubscriptionsAsync(serviceProvider);
 
         // TODO: Configure other infrastructure services
+    }
+
+    /// <summary>
+    /// Adds Redis caching services to the service collection
+    /// </summary>
+    /// <param name="services">The service collection</param>
+    /// <param name="configuration">The configuration</param>
+    /// <returns>The service collection</returns>
+    private static IServiceCollection AddRedisCaching(
+        this IServiceCollection services,
+        IConfiguration configuration)
+    {
+        // Configure cache options
+        services.Configure<CacheOptions>(configuration.GetSection(CacheOptions.SectionName));
+
+        // Add Redis connection
+        var redisConnectionString = configuration.GetConnectionString("Redis") 
+            ?? throw new InvalidOperationException("Redis connection string is not configured");
+
+        services.AddSingleton<IConnectionMultiplexer>(provider =>
+        {
+            var configurationOptions = ConfigurationOptions.Parse(redisConnectionString);
+            configurationOptions.AbortOnConnectFail = false;
+            configurationOptions.ConnectRetry = 3;
+            configurationOptions.ConnectTimeout = 5000;
+            return ConnectionMultiplexer.Connect(configurationOptions);
+        });
+
+        // Add distributed cache
+        services.AddStackExchangeRedisCache(options =>
+        {
+            options.Configuration = redisConnectionString;
+            options.InstanceName = "ECommerce";
+        });
+
+        // Register cache services
+        services.AddScoped<ICacheService, RedisCacheService>();
+        services.AddScoped<ICacheInvalidationService, CacheInvalidationService>();
+
+        return services;
     }
 }
