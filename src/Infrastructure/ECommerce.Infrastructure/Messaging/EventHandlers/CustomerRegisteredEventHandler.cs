@@ -1,5 +1,7 @@
 using ECommerce.Application.Interfaces;
 using ECommerce.Domain.Events;
+using ECommerce.ReadModel.Models;
+using ECommerce.ReadModel.Services;
 
 namespace ECommerce.Infrastructure.Messaging.EventHandlers;
 
@@ -9,10 +11,14 @@ namespace ECommerce.Infrastructure.Messaging.EventHandlers;
 public class CustomerRegisteredEventHandler : IEventHandler<CustomerRegisteredEvent>
 {
     private readonly ILogger<CustomerRegisteredEventHandler> _logger;
+    private readonly ICustomerSearchService _customerSearchService;
 
-    public CustomerRegisteredEventHandler(ILogger<CustomerRegisteredEventHandler> logger)
+    public CustomerRegisteredEventHandler(
+        ILogger<CustomerRegisteredEventHandler> logger,
+        ICustomerSearchService customerSearchService)
     {
         _logger = logger;
+        _customerSearchService = customerSearchService;
     }
 
     /// <inheritdoc />
@@ -23,12 +29,51 @@ public class CustomerRegisteredEventHandler : IEventHandler<CustomerRegisteredEv
 
         try
         {
-            // TODO: Update read model in Elasticsearch
-            // TODO: Send welcome email
-            // TODO: Create customer profile
-            // TODO: Update analytics
+            // Create read model for Elasticsearch
+            var customerReadModel = new CustomerReadModel
+            {
+                Id = domainEvent.CustomerId,
+                FirstName = domainEvent.FirstName,
+                LastName = domainEvent.LastName,
+                FullName = $"{domainEvent.FirstName} {domainEvent.LastName}".Trim(),
+                Email = domainEvent.Email,
+                PhoneNumber = domainEvent.PhoneNumber,
+                IsActive = true,
+                RegistrationDate = domainEvent.RegistrationDate,
+                LastActiveDate = domainEvent.RegistrationDate,
+                Addresses = [],
+                Profile = new ProfileReadModel
+                {
+                    PreferredLanguage = "en",
+                    PreferredCurrency = "USD",
+                    MarketingEmailsEnabled = true,
+                    SmsNotificationsEnabled = false,
+                    Interests = []
+                },
+                Statistics = new CustomerStatisticsReadModel
+                {
+                    TotalOrders = 0,
+                    TotalSpent = 0,
+                    Currency = "USD",
+                    AverageOrderValue = 0,
+                    LifetimeValue = 0,
+                    Segment = "New"
+                },
+                CreatedAt = domainEvent.OccurredOn,
+                UpdatedAt = domainEvent.OccurredOn,
+                Suggest = new Nest.CompletionField
+                {
+                    Input = [domainEvent.Email, $"{domainEvent.FirstName} {domainEvent.LastName}".Trim()]
+                }
+            };
+
+            // Index the customer in Elasticsearch
+            var success = await _customerSearchService.IndexDocumentAsync(customerReadModel, cancellationToken);
             
-            await Task.Delay(100, cancellationToken); // Simulate processing
+            if (!success)
+            {
+                _logger.LogWarning("Failed to index customer {CustomerId} in Elasticsearch", domainEvent.CustomerId);
+            }
             
             _logger.LogInformation("Successfully processed CustomerRegisteredEvent for customer {CustomerId}", 
                 domainEvent.CustomerId);

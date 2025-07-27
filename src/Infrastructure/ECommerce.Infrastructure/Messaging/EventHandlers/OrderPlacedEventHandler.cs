@@ -1,5 +1,7 @@
 using ECommerce.Application.Interfaces;
 using ECommerce.Domain.Events;
+using ECommerce.ReadModel.Models;
+using ECommerce.ReadModel.Services;
 
 namespace ECommerce.Infrastructure.Messaging.EventHandlers;
 
@@ -9,10 +11,14 @@ namespace ECommerce.Infrastructure.Messaging.EventHandlers;
 public class OrderPlacedEventHandler : IEventHandler<OrderPlacedEvent>
 {
     private readonly ILogger<OrderPlacedEventHandler> _logger;
+    private readonly IOrderSearchService _orderSearchService;
 
-    public OrderPlacedEventHandler(ILogger<OrderPlacedEventHandler> logger)
+    public OrderPlacedEventHandler(
+        ILogger<OrderPlacedEventHandler> logger,
+        IOrderSearchService orderSearchService)
     {
         _logger = logger;
+        _orderSearchService = orderSearchService;
     }
 
     /// <inheritdoc />
@@ -23,13 +29,37 @@ public class OrderPlacedEventHandler : IEventHandler<OrderPlacedEvent>
 
         try
         {
-            // TODO: Update read model in Elasticsearch
-            // TODO: Send order confirmation email
-            // TODO: Update inventory
-            // TODO: Process payment
-            // TODO: Update analytics
+            // Create read model for Elasticsearch
+            var orderReadModel = new OrderReadModel
+            {
+                Id = domainEvent.OrderId,
+                CustomerId = domainEvent.CustomerId,
+                Customer = new CustomerSummaryReadModel
+                {
+                    Id = domainEvent.CustomerId
+                },
+                Status = "Placed",
+                ShippingAddress = domainEvent.ShippingAddress,
+                BillingAddress = domainEvent.ShippingAddress, // Assuming same as shipping for now
+                Items = [], // Will be populated by separate events or queries
+                TotalAmount = domainEvent.TotalAmount,
+                Currency = domainEvent.Currency,
+                TotalItemCount = domainEvent.ItemCount,
+                CreatedAt = domainEvent.OccurredOn,
+                UpdatedAt = domainEvent.OccurredOn,
+                ConfirmedAt = null,
+                ShippedAt = null,
+                DeliveredAt = null,
+                CancelledAt = null
+            };
+
+            // Index the order in Elasticsearch
+            var success = await _orderSearchService.IndexDocumentAsync(orderReadModel, cancellationToken);
             
-            await Task.Delay(100, cancellationToken); // Simulate processing
+            if (!success)
+            {
+                _logger.LogWarning("Failed to index order {OrderId} in Elasticsearch", domainEvent.OrderId);
+            }
             
             _logger.LogInformation("Successfully processed OrderPlacedEvent for order {OrderId}", 
                 domainEvent.OrderId);
