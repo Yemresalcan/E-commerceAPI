@@ -1,90 +1,149 @@
 using ECommerce.Application.Behaviors;
-using ECommerce.Application.Commands;
 using FluentValidation;
 using FluentValidation.Results;
-using Microsoft.Extensions.Logging;
+using MediatR;
 using Moq;
 
 namespace ECommerce.Application.Tests.Behaviors;
 
 public class ValidationBehaviorTests
 {
-    private readonly Mock<IValidator<TestCommand>> _validatorMock;
-    private readonly ValidationBehavior<TestCommand, string> _behavior;
+    private readonly Mock<IValidator<TestRequest>> _validatorMock;
+    private readonly Mock<RequestHandlerDelegate<TestResponse>> _nextMock;
+    private readonly ValidationBehavior<TestRequest, TestResponse> _behavior;
 
     public ValidationBehaviorTests()
     {
-        _validatorMock = new Mock<IValidator<TestCommand>>();
-        _behavior = new ValidationBehavior<TestCommand, string>([_validatorMock.Object]);
+        _validatorMock = new Mock<IValidator<TestRequest>>();
+        _nextMock = new Mock<RequestHandlerDelegate<TestResponse>>();
+        _behavior = new ValidationBehavior<TestRequest, TestResponse>(new[] { _validatorMock.Object });
     }
 
     [Fact]
-    public async Task Handle_WithValidRequest_ShouldCallNext()
+    public async Task Handle_WithNoValidators_CallsNext()
     {
         // Arrange
-        var command = new TestCommand("Valid message");
-        var expectedResponse = "Success";
-        var nextCalled = false;
-
-        _validatorMock
-            .Setup(v => v.ValidateAsync(It.IsAny<ValidationContext<TestCommand>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult());
-
-        Task<string> Next() 
-        {
-            nextCalled = true;
-            return Task.FromResult(expectedResponse);
-        }
+        var behaviorWithoutValidators = new ValidationBehavior<TestRequest, TestResponse>(Enumerable.Empty<IValidator<TestRequest>>());
+        var request = new TestRequest("Test");
+        var expectedResponse = new TestResponse("Success");
+        
+        _nextMock.Setup(x => x()).ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await _behavior.Handle(command, Next, CancellationToken.None);
+        var result = await behaviorWithoutValidators.Handle(request, _nextMock.Object, CancellationToken.None);
 
         // Assert
-        result.Should().Be(expectedResponse);
-        nextCalled.Should().BeTrue();
+        Assert.Equal(expectedResponse, result);
+        _nextMock.Verify(x => x(), Times.Once);
     }
 
     [Fact]
-    public async Task Handle_WithInvalidRequest_ShouldThrowValidationException()
+    public async Task Handle_WithValidRequest_CallsNext()
     {
         // Arrange
-        var command = new TestCommand("");
+        var request = new TestRequest("Test");
+        var expectedResponse = new TestResponse("Success");
+        var validationResult = new ValidationResult();
+
+        _validatorMock
+            .Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<TestRequest>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(validationResult);
+        
+        _nextMock.Setup(x => x()).ReturnsAsync(expectedResponse);
+
+        // Act
+        var result = await _behavior.Handle(request, _nextMock.Object, CancellationToken.None);
+
+        // Assert
+        Assert.Equal(expectedResponse, result);
+        _nextMock.Verify(x => x(), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WithInvalidRequest_ThrowsValidationException()
+    {
+        // Arrange
+        var request = new TestRequest("Test");
         var validationFailures = new List<ValidationFailure>
         {
-            new("Message", "Message is required")
+            new("Name", "Name is required"),
+            new("Email", "Email is invalid")
         };
+        var validationResult = new ValidationResult(validationFailures);
 
         _validatorMock
-            .Setup(v => v.ValidateAsync(It.IsAny<ValidationContext<TestCommand>>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ValidationResult(validationFailures));
-
-        Task<string> Next() => Task.FromResult("Should not be called");
+            .Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<TestRequest>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(validationResult);
 
         // Act & Assert
-        await _behavior.Invoking(b => b.Handle(command, Next, CancellationToken.None))
-            .Should().ThrowAsync<ValidationException>();
+        var exception = await Assert.ThrowsAsync<FluentValidation.ValidationException>(
+            () => _behavior.Handle(request, _nextMock.Object, CancellationToken.None));
+
+        Assert.Equal(2, exception.Errors.Count());
+        _nextMock.Verify(x => x(), Times.Never);
     }
 
     [Fact]
-    public async Task Handle_WithNoValidators_ShouldCallNext()
+    public async Task Handle_WithMultipleValidators_ValidatesAll()
     {
         // Arrange
-        var command = new TestCommand("Test message");
-        var expectedResponse = "Success";
-        var nextCalled = false;
-        var behaviorWithNoValidators = new ValidationBehavior<TestCommand, string>([]);
+        var validator1Mock = new Mock<IValidator<TestRequest>>();
+        var validator2Mock = new Mock<IValidator<TestRequest>>();
+        var behaviorWithMultipleValidators = new ValidationBehavior<TestRequest, TestResponse>(
+            new[] { validator1Mock.Object, validator2Mock.Object });
 
-        Task<string> Next() 
-        {
-            nextCalled = true;
-            return Task.FromResult(expectedResponse);
-        }
+        var request = new TestRequest("Test");
+        var expectedResponse = new TestResponse("Success");
+
+        validator1Mock
+            .Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<TestRequest>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult());
+        
+        validator2Mock
+            .Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<TestRequest>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult());
+        
+        _nextMock.Setup(x => x()).ReturnsAsync(expectedResponse);
 
         // Act
-        var result = await behaviorWithNoValidators.Handle(command, Next, CancellationToken.None);
+        var result = await behaviorWithMultipleValidators.Handle(request, _nextMock.Object, CancellationToken.None);
 
         // Assert
-        result.Should().Be(expectedResponse);
-        nextCalled.Should().BeTrue();
+        Assert.Equal(expectedResponse, result);
+        validator1Mock.Verify(x => x.ValidateAsync(It.IsAny<ValidationContext<TestRequest>>(), It.IsAny<CancellationToken>()), Times.Once);
+        validator2Mock.Verify(x => x.ValidateAsync(It.IsAny<ValidationContext<TestRequest>>(), It.IsAny<CancellationToken>()), Times.Once);
+        _nextMock.Verify(x => x(), Times.Once);
     }
+
+    [Fact]
+    public async Task Handle_WithMultipleValidatorsAndFailures_CombinesAllFailures()
+    {
+        // Arrange
+        var validator1Mock = new Mock<IValidator<TestRequest>>();
+        var validator2Mock = new Mock<IValidator<TestRequest>>();
+        var behaviorWithMultipleValidators = new ValidationBehavior<TestRequest, TestResponse>(
+            new[] { validator1Mock.Object, validator2Mock.Object });
+
+        var request = new TestRequest("Test");
+
+        validator1Mock
+            .Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<TestRequest>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(new[] { new ValidationFailure("Name", "Name is required") }));
+        
+        validator2Mock
+            .Setup(x => x.ValidateAsync(It.IsAny<ValidationContext<TestRequest>>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ValidationResult(new[] { new ValidationFailure("Email", "Email is invalid") }));
+
+        // Act & Assert
+        var exception = await Assert.ThrowsAsync<FluentValidation.ValidationException>(
+            () => behaviorWithMultipleValidators.Handle(request, _nextMock.Object, CancellationToken.None));
+
+        Assert.Equal(2, exception.Errors.Count());
+        Assert.Contains(exception.Errors, e => e.PropertyName == "Name");
+        Assert.Contains(exception.Errors, e => e.PropertyName == "Email");
+        _nextMock.Verify(x => x(), Times.Never);
+    }
+
+    public record TestRequest(string Name) : IRequest<TestResponse>;
+    public record TestResponse(string Message);
 }
