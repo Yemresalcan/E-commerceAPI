@@ -1,0 +1,191 @@
+using ECommerce.Application.Commands.Products;
+using ECommerce.Application.Queries.Products;
+using ECommerce.Application.DTOs;
+using ECommerce.Application.Common.Models;
+
+namespace ECommerce.WebAPI.Controllers;
+
+/// <summary>
+/// Products API controller providing CRUD operations for product management
+/// </summary>
+[ApiController]
+[Route("api/[controller]")]
+[Produces("application/json")]
+public class ProductsController(IMediator mediator) : ControllerBase
+{
+    /// <summary>
+    /// Get products with pagination and filtering
+    /// </summary>
+    /// <param name="searchTerm">Search term for product name or description</param>
+    /// <param name="categoryId">Filter by category ID</param>
+    /// <param name="minPrice">Minimum price filter</param>
+    /// <param name="maxPrice">Maximum price filter</param>
+    /// <param name="inStockOnly">Filter to show only products in stock</param>
+    /// <param name="featuredOnly">Filter to show only featured products</param>
+    /// <param name="tags">Filter by product tags</param>
+    /// <param name="minRating">Minimum rating filter</param>
+    /// <param name="sortBy">Sort criteria (relevance, price_asc, price_desc, rating, newest)</param>
+    /// <param name="page">Page number (1-based)</param>
+    /// <param name="pageSize">Number of items per page</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Paginated list of products</returns>
+    [HttpGet]
+    [ProducesResponseType(typeof(PagedResult<ProductDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<PagedResult<ProductDto>>> GetProducts(
+        [FromQuery] string? searchTerm = null,
+        [FromQuery] Guid? categoryId = null,
+        [FromQuery] decimal? minPrice = null,
+        [FromQuery] decimal? maxPrice = null,
+        [FromQuery] bool? inStockOnly = null,
+        [FromQuery] bool? featuredOnly = null,
+        [FromQuery] List<string>? tags = null,
+        [FromQuery] decimal? minRating = null,
+        [FromQuery] string? sortBy = "relevance",
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (page < 1)
+            return BadRequest("Page must be greater than 0");
+
+        if (pageSize < 1 || pageSize > 100)
+            return BadRequest("Page size must be between 1 and 100");
+
+        var query = new GetProductsQuery(
+            searchTerm,
+            categoryId,
+            minPrice,
+            maxPrice,
+            inStockOnly,
+            featuredOnly,
+            tags,
+            minRating,
+            sortBy,
+            page,
+            pageSize);
+
+        var result = await mediator.Send(query, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Search products using advanced search capabilities
+    /// </summary>
+    /// <param name="query">Search query string</param>
+    /// <param name="categoryId">Filter by category ID</param>
+    /// <param name="minPrice">Minimum price filter</param>
+    /// <param name="maxPrice">Maximum price filter</param>
+    /// <param name="inStockOnly">Filter to show only products in stock</param>
+    /// <param name="featuredOnly">Filter to show only featured products</param>
+    /// <param name="tags">Filter by product tags</param>
+    /// <param name="minRating">Minimum rating filter</param>
+    /// <param name="sortBy">Sort criteria</param>
+    /// <param name="page">Page number (1-based)</param>
+    /// <param name="pageSize">Number of items per page</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Search results with facets</returns>
+    [HttpGet("search")]
+    [ProducesResponseType(typeof(ProductSearchResultDto), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    public async Task<ActionResult<ProductSearchResultDto>> SearchProducts(
+        [FromQuery] string query,
+        [FromQuery] Guid? categoryId = null,
+        [FromQuery] decimal? minPrice = null,
+        [FromQuery] decimal? maxPrice = null,
+        [FromQuery] bool? inStockOnly = null,
+        [FromQuery] bool? featuredOnly = null,
+        [FromQuery] List<string>? tags = null,
+        [FromQuery] decimal? minRating = null,
+        [FromQuery] string? sortBy = "relevance",
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 20,
+        CancellationToken cancellationToken = default)
+    {
+        if (string.IsNullOrWhiteSpace(query))
+            return BadRequest("Search query is required");
+
+        if (page < 1)
+            return BadRequest("Page must be greater than 0");
+
+        if (pageSize < 1 || pageSize > 100)
+            return BadRequest("Page size must be between 1 and 100");
+
+        var searchQuery = new SearchProductsQuery(
+            query,
+            categoryId,
+            minPrice,
+            maxPrice,
+            inStockOnly,
+            featuredOnly,
+            tags,
+            minRating,
+            sortBy,
+            page,
+            pageSize);
+
+        var result = await mediator.Send(searchQuery, cancellationToken);
+        return Ok(result);
+    }
+
+    /// <summary>
+    /// Create a new product
+    /// </summary>
+    /// <param name="command">Product creation data</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Created product ID</returns>
+    [HttpPost]
+    [ProducesResponseType(typeof(Guid), StatusCodes.Status201Created)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<ActionResult<Guid>> CreateProduct(
+        [FromBody] CreateProductCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        var productId = await mediator.Send(command, cancellationToken);
+        return CreatedAtAction(nameof(GetProducts), new { }, productId);
+    }
+
+    /// <summary>
+    /// Update an existing product
+    /// </summary>
+    /// <param name="id">Product ID</param>
+    /// <param name="command">Product update data</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>No content on success</returns>
+    [HttpPut("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
+    public async Task<IActionResult> UpdateProduct(
+        Guid id,
+        [FromBody] UpdateProductCommand command,
+        CancellationToken cancellationToken = default)
+    {
+        if (id != command.ProductId)
+            return BadRequest("Product ID in URL does not match the ID in the request body");
+
+        await mediator.Send(command, cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
+    /// Delete a product
+    /// </summary>
+    /// <param name="id">Product ID</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>No content on success</returns>
+    [HttpDelete("{id:guid}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status409Conflict)]
+    public async Task<IActionResult> DeleteProduct(
+        Guid id,
+        CancellationToken cancellationToken = default)
+    {
+        var command = new DeleteProductCommand(id);
+        await mediator.Send(command, cancellationToken);
+        return NoContent();
+    }
+}
