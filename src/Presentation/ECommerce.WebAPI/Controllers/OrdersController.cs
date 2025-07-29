@@ -2,6 +2,8 @@ using ECommerce.Application.Commands.Orders;
 using ECommerce.Application.Queries.Orders;
 using ECommerce.Application.DTOs;
 using ECommerce.Application.Common.Models;
+using Microsoft.AspNetCore.Mvc;
+using Asp.Versioning;
 
 namespace ECommerce.WebAPI.Controllers;
 
@@ -9,7 +11,8 @@ namespace ECommerce.WebAPI.Controllers;
 /// Orders API controller providing order management operations
 /// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/[controller]")]
 [Produces("application/json")]
 public class OrdersController(IMediator mediator) : ControllerBase
 {

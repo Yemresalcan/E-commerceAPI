@@ -2,6 +2,8 @@ using ECommerce.Application.Commands.Products;
 using ECommerce.Application.Queries.Products;
 using ECommerce.Application.DTOs;
 using ECommerce.Application.Common.Models;
+using Microsoft.AspNetCore.Mvc;
+using Asp.Versioning;
 
 namespace ECommerce.WebAPI.Controllers;
 
@@ -9,7 +11,8 @@ namespace ECommerce.WebAPI.Controllers;
 /// Products API controller providing CRUD operations for product management
 /// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/[controller]")]
 [Produces("application/json")]
 public class ProductsController(IMediator mediator) : ControllerBase
 {

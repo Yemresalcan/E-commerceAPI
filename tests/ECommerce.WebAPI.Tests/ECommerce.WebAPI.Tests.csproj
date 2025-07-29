@@ -22,12 +22,19 @@
     <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="FluentAssertions" Version="6.12.2" />
     <PackageReference Include="Microsoft.AspNetCore.Mvc.Testing" Version="9.0.0" />
+    <PackageReference Include="Testcontainers" Version="3.10.0" />
+    <PackageReference Include="Testcontainers.PostgreSql" Version="3.10.0" />
+    <PackageReference Include="Testcontainers.Redis" Version="3.10.0" />
+    <PackageReference Include="Testcontainers.Elasticsearch" Version="3.10.0" />
+    <PackageReference Include="Testcontainers.RabbitMq" Version="3.10.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.InMemory" Version="9.0.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Presentation\ECommerce.WebAPI\ECommerce.WebAPI.csproj" />
     <ProjectReference Include="..\..\src\Core\ECommerce.Application\ECommerce.Application.csproj" />
     <ProjectReference Include="..\..\src\Core\ECommerce.Domain\ECommerce.Domain.csproj" />
+    <ProjectReference Include="..\..\src\Infrastructure\ECommerce.Infrastructure\ECommerce.Infrastructure.csproj" />
   </ItemGroup>
 
 </Project>

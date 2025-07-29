@@ -21,8 +21,8 @@ public static class DependencyInjection
         this IServiceCollection services, 
         IConfiguration configuration)
     {
-        // Add messaging services
-        services.AddRabbitMQMessaging(configuration);
+        // Add messaging services (temporarily disabled for demo)
+        // services.AddRabbitMQMessaging(configuration);
 
         // Add caching services
         services.AddRedisCaching(configuration);

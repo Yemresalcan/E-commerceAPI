@@ -2,6 +2,8 @@ using ECommerce.Application.Commands.Customers;
 using ECommerce.Application.Queries.Customers;
 using ECommerce.Application.DTOs;
 using ECommerce.Application.Common.Models;
+using Microsoft.AspNetCore.Mvc;
+using Asp.Versioning;
 
 namespace ECommerce.WebAPI.Controllers;
 
@@ -9,7 +11,8 @@ namespace ECommerce.WebAPI.Controllers;
 /// Customers API controller providing customer management operations
 /// </summary>
 [ApiController]
-[Route("api/[controller]")]
+[ApiVersion("1.0")]
+[Route("api/v{version:apiVersion}/[controller]")]
 [Produces("application/json")]
 public class CustomersController(IMediator mediator) : ControllerBase
 {

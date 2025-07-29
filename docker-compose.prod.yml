@@ -1,0 +1,209 @@
+version: '3.8'
+
+services:
+  ecommerce-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: runtime
+    container_name: ecommerce-api-prod
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:8080
+      - ConnectionStrings__DefaultConnection=Host=${POSTGRES_HOST};Database=${POSTGRES_DB};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD}
+      - ConnectionStrings__Redis=${REDIS_HOST}:${REDIS_PORT}
+      - ConnectionStrings__Elasticsearch=http://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}
+      - ConnectionStrings__RabbitMQ=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@${RABBITMQ_HOST}:${RABBITMQ_PORT}${RABBITMQ_VHOST}
+      - Logging__LogLevel__Default=${LOG_LEVEL}
+      - Logging__LogLevel__Microsoft.AspNetCore=Warning
+      - Serilog__MinimumLevel__Default=${SERILOG_MINIMUM_LEVEL}
+      - Serilog__WriteTo__0__Name=Console
+      - Serilog__WriteTo__1__Name=File
+      - Serilog__WriteTo__1__Args__path=logs/ecommerce-.txt
+      - Serilog__WriteTo__1__Args__rollingInterval=Day
+      - Serilog__WriteTo__1__Args__retainedFileCountLimit=30
+      - Serilog__WriteTo__2__Name=Elasticsearch
+      - Serilog__WriteTo__2__Args__nodeUris=http://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}
+      - Serilog__WriteTo__2__Args__indexFormat=ecommerce-logs-{0:yyyy.MM.dd}
+      - Cache__DefaultExpiration=${CACHE_DEFAULT_EXPIRATION}
+      - Cache__SlidingExpiration=${CACHE_SLIDING_EXPIRATION}
+      - EventBus__ConnectionString=amqp://${RABBITMQ_USERNAME}:${RABBITMQ_PASSWORD}@${RABBITMQ_HOST}:${RABBITMQ_PORT}${RABBITMQ_VHOST}
+      - EventBus__RetryCount=${EVENTBUS_RETRY_COUNT}
+      - EventBus__RetryDelay=${EVENTBUS_RETRY_DELAY}
+      - Search__ConnectionString=http://${ELASTICSEARCH_HOST}:${ELASTICSEARCH_PORT}
+      - Search__DefaultIndex=${SEARCH_DEFAULT_INDEX}
+      - Security__JwtSettings__SecretKey=${JWT_SECRET_KEY}
+      - Security__JwtSettings__Issuer=${JWT_ISSUER}
+      - Security__JwtSettings__Audience=${JWT_AUDIENCE}
+      - Security__JwtSettings__ExpirationMinutes=${JWT_EXPIRATION_MINUTES}
+    ports:
+      - "${API_PORT}:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      elasticsearch:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: ${HEALTHCHECK_INTERVAL}s
+      timeout: ${HEALTHCHECK_TIMEOUT}s
+      retries: 5
+      start_period: 60s
+    restart: unless-stopped
+    volumes:
+      - ./logs:/app/logs
+      - /etc/localtime:/etc/localtime:ro
+    networks:
+      - ecommerce-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '1.0'
+        reservations:
+          memory: 512M
+          cpus: '0.5'
+
+  postgres:
+    image: postgres:16
+    container_name: ecommerce-postgres-prod
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_INITDB_ARGS: "--auth-host=scram-sha-256 --auth-local=scram-sha-256"
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres_prod_data:/var/lib/postgresql/data
+      - ./backups:/backups
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
+      interval: ${HEALTHCHECK_INTERVAL}s
+      timeout: ${HEALTHCHECK_TIMEOUT}s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ecommerce-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  redis:
+    image: redis:7-alpine
+    container_name: ecommerce-redis-prod
+    command: redis-server --appendonly yes --maxmemory 512mb --maxmemory-policy allkeys-lru --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "${REDIS_PORT}:6379"
+    volumes:
+      - redis_prod_data:/data
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: ${HEALTHCHECK_INTERVAL}s
+      timeout: ${HEALTHCHECK_TIMEOUT}s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ecommerce-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+        reservations:
+          memory: 256M
+          cpus: '0.25'
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: ecommerce-elasticsearch-prod
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - "ES_JAVA_OPTS=-Xms1g -Xmx1g"
+      - cluster.name=ecommerce-prod
+      - node.name=ecommerce-prod-node
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "${ELASTICSEARCH_PORT}:9200"
+    volumes:
+      - elasticsearch_prod_data:/usr/share/elasticsearch/data
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: ${HEALTHCHECK_INTERVAL}s
+      timeout: ${HEALTHCHECK_TIMEOUT}s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ecommerce-network
+    deploy:
+      resources:
+        limits:
+          memory: 2G
+          cpus: '1.0'
+        reservations:
+          memory: 1G
+          cpus: '0.5'
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: ecommerce-rabbitmq-prod
+    environment:
+      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME}
+      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD}
+      RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST}
+    ports:
+      - "${RABBITMQ_PORT}:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq_prod_data:/var/lib/rabbitmq
+      - /etc/localtime:/etc/localtime:ro
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: ${HEALTHCHECK_INTERVAL}s
+      timeout: ${HEALTHCHECK_TIMEOUT}s
+      retries: 3
+    restart: unless-stopped
+    networks:
+      - ecommerce-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+          cpus: '0.5'
+        reservations:
+          memory: 512M
+          cpus: '0.25'
+
+networks:
+  ecommerce-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
+
+volumes:
+  postgres_prod_data:
+    driver: local
+  redis_prod_data:
+    driver: local
+  elasticsearch_prod_data:
+    driver: local
+  rabbitmq_prod_data:
+    driver: local

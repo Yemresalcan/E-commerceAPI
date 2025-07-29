@@ -13,11 +13,13 @@ public class Repository<T> : IRepository<T> where T : AggregateRoot
 {
     protected readonly ECommerceDbContext _context;
     protected readonly DbSet<T> _dbSet;
+    protected readonly ILogger<Repository<T>> _logger;
 
-    public Repository(ECommerceDbContext context)
+    public Repository(ECommerceDbContext context, ILogger<Repository<T>> logger)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
         _dbSet = _context.Set<T>();
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>
@@ -25,7 +27,22 @@ public class Repository<T> : IRepository<T> where T : AggregateRoot
     /// </summary>
     public virtual async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _dbSet.FindAsync([id], cancellationToken);
+        using (_logger.BeginRepositoryScope(typeof(T).Name, "GetById"))
+        {
+            _logger.LogDebug("Getting {AggregateType} by ID: {AggregateId}", typeof(T).Name, id);
+            var result = await _dbSet.FindAsync([id], cancellationToken);
+            
+            if (result == null)
+            {
+                _logger.LogDebug("{AggregateType} with ID {AggregateId} not found", typeof(T).Name, id);
+            }
+            else
+            {
+                _logger.LogDebug("Successfully retrieved {AggregateType} with ID: {AggregateId}", typeof(T).Name, id);
+            }
+            
+            return result;
+        }
     }
 
     /// <summary>
@@ -42,7 +59,13 @@ public class Repository<T> : IRepository<T> where T : AggregateRoot
     public virtual async Task AddAsync(T aggregate, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(aggregate);
-        await _dbSet.AddAsync(aggregate, cancellationToken);
+        
+        using (_logger.BeginRepositoryScope(typeof(T).Name, "Add"))
+        {
+            _logger.LogDebug("Adding new {AggregateType} with ID: {AggregateId}", typeof(T).Name, aggregate.Id);
+            await _dbSet.AddAsync(aggregate, cancellationToken);
+            _logger.LogDebug("Successfully added {AggregateType} with ID: {AggregateId} to context", typeof(T).Name, aggregate.Id);
+        }
     }
 
     /// <summary>

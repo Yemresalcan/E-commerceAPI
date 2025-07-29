@@ -10,8 +10,12 @@ namespace ECommerce.Infrastructure.Repositories;
 /// </summary>
 public class OrderRepository : Repository<Order>, IOrderRepository
 {
-    public OrderRepository(ECommerceDbContext context) : base(context)
+    private readonly ILogger<OrderRepository> _orderLogger;
+
+    public OrderRepository(ECommerceDbContext context, ILogger<OrderRepository> logger, ILogger<Repository<Order>> baseLogger) 
+        : base(context, baseLogger)
     {
+        _orderLogger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>

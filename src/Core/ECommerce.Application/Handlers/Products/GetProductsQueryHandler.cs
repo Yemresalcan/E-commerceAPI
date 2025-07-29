@@ -15,22 +15,37 @@ public class GetProductsQueryHandler(
 {
     public async Task<PagedResult<ProductDto>> Handle(GetProductsQuery request, CancellationToken cancellationToken)
     {
-        logger.LogInformation("Handling GetProductsQuery with search term: {SearchTerm}, page: {Page}, pageSize: {PageSize}",
-            request.SearchTerm, request.Page, request.PageSize);
-
-        try
+        using (logger.BeginScope(new Dictionary<string, object>
         {
-            var result = await productQueryService.GetProductsAsync(request, cancellationToken);
-
-            logger.LogInformation("Successfully retrieved {Count} products out of {Total} total",
-                result.Items.Count, result.TotalCount);
-
-            return result;
-        }
-        catch (Exception ex)
+            ["SearchTerm"] = request.SearchTerm ?? "null",
+            ["Page"] = request.Page,
+            ["PageSize"] = request.PageSize,
+            ["CategoryId"] = request.CategoryId?.ToString() ?? "null",
+            ["MinPrice"] = request.MinPrice?.ToString() ?? "null",
+            ["MaxPrice"] = request.MaxPrice?.ToString() ?? "null"
+        }))
         {
-            logger.LogError(ex, "Error occurred while handling GetProductsQuery");
-            throw;
+            logger.LogInformation("Starting product query with search term: '{SearchTerm}', page: {Page}, pageSize: {PageSize}",
+                request.SearchTerm ?? "null", request.Page, request.PageSize);
+
+            try
+            {
+                var result = await productQueryService.GetProductsAsync(request, cancellationToken);
+
+                logger.LogInformation("Successfully retrieved {Count} products out of {Total} total for query", 
+                    result.Items.Count, result.TotalCount);
+
+                // Log additional metrics for monitoring
+                logger.LogDebug("Query performance metrics - Page: {Page}, PageSize: {PageSize}, TotalPages: {TotalPages}, HasNextPage: {HasNextPage}", 
+                    result.Page, result.PageSize, result.TotalPages, result.HasNextPage);
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "Error occurred while executing product query");
+                throw;
+            }
         }
     }
 }

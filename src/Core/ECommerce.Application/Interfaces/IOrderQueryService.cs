@@ -18,4 +18,9 @@ public interface IOrderQueryService
     /// Gets orders with pagination and filtering
     /// </summary>
     Task<PagedResult<OrderDto>> GetOrdersAsync(GetOrdersQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Checks the health of the order query service
+    /// </summary>
+    Task CheckHealthAsync(CancellationToken cancellationToken = default);
 }

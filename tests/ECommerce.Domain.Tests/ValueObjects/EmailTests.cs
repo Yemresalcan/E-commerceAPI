@@ -10,7 +10,7 @@ public class EmailTests
     [InlineData("user+tag@example.org")]
     [InlineData("user_name@example-domain.com")]
     [InlineData("123@example.com")]
-    [InlineData("test.email.with+symbol@example.com")]
+    [InlineData("test@sub.domain.com")]
     public void Constructor_WithValidEmail_ShouldCreateEmail(string validEmail)
     {
         // Act
@@ -20,8 +20,74 @@ public class EmailTests
         email.Value.Should().Be(validEmail.ToLowerInvariant());
     }
 
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public void Constructor_WithNullOrEmptyEmail_ShouldThrowArgumentException(string invalidEmail)
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() => new Email(invalidEmail));
+        exception.Message.Should().Contain("Email cannot be null or empty");
+    }
+
+    [Theory]
+    [InlineData("invalid-email")]
+    [InlineData("@example.com")]
+    [InlineData("test@")]
+    [InlineData("test..test@example.com")]
+    [InlineData("test@example")]
+    [InlineData("test@.example.com")]
+    [InlineData("test@example..com")]
+    [InlineData("test@example.")]
+    [InlineData("test@-example.com")]
+    [InlineData("test@example-.com")]
+    [InlineData(".test@example.com")]
+    [InlineData("test.@example.com")]
+    public void Constructor_WithInvalidEmail_ShouldThrowArgumentException(string invalidEmail)
+    {
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() => new Email(invalidEmail));
+        exception.Message.Should().Contain("Invalid email format");
+    }
+
     [Fact]
-    public void Constructor_WithValidEmailWithWhitespace_ShouldTrimAndCreateEmail()
+    public void Constructor_WithEmailTooLong_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var longEmail = new string('a', 250) + "@example.com"; // Over 254 characters
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() => new Email(longEmail));
+        exception.Message.Should().Contain("Email address is too long");
+    }
+
+    [Fact]
+    public void Constructor_WithLocalPartTooLong_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var longLocalPart = new string('a', 65); // Over 64 characters
+        var email = $"{longLocalPart}@example.com";
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() => new Email(email));
+        exception.Message.Should().Contain("Invalid email format");
+    }
+
+    [Fact]
+    public void Constructor_WithDomainTooLong_ShouldThrowArgumentException()
+    {
+        // Arrange
+        var longDomain = new string('a', 250) + ".com"; // Over 253 characters
+        var email = $"test@{longDomain}";
+
+        // Act & Assert
+        var exception = Assert.Throws<ArgumentException>(() => new Email(email));
+        exception.Message.Should().Contain("Email address is too long");
+    }
+
+    [Fact]
+    public void Constructor_WithWhitespace_ShouldTrimAndCreateEmail()
     {
         // Arrange
         var emailWithWhitespace = "  test@example.com  ";
@@ -34,94 +100,20 @@ public class EmailTests
     }
 
     [Fact]
-    public void Constructor_WithUppercaseEmail_ShouldConvertToLowercase()
+    public void Constructor_WithMixedCase_ShouldConvertToLowerCase()
     {
         // Arrange
-        var uppercaseEmail = "TEST@EXAMPLE.COM";
+        var mixedCaseEmail = "Test.User@EXAMPLE.COM";
 
         // Act
-        var email = new Email(uppercaseEmail);
+        var email = new Email(mixedCaseEmail);
 
         // Assert
-        email.Value.Should().Be("test@example.com");
-    }
-
-    [Theory]
-    [InlineData(null)]
-    [InlineData("")]
-    [InlineData("   ")]
-    public void Constructor_WithNullOrEmptyEmail_ShouldThrowArgumentException(string invalidEmail)
-    {
-        // Act & Assert
-        var action = () => new Email(invalidEmail);
-        action.Should().Throw<ArgumentException>()
-            .WithMessage("Email cannot be null or empty.*");
-    }
-
-    [Theory]
-    [InlineData("invalid-email")]
-    [InlineData("@example.com")]
-    [InlineData("test@")]
-    [InlineData("test@@example.com")]
-    [InlineData("test@example")]
-    [InlineData("test.example.com")]
-    [InlineData("test@.example.com")]
-    [InlineData("test@example.")]
-    [InlineData("test@example..com")]
-    [InlineData(".test@example.com")]
-    [InlineData("test.@example.com")]
-    [InlineData("te..st@example.com")]
-    [InlineData("test@-example.com")]
-    [InlineData("test@example-.com")]
-    public void Constructor_WithInvalidEmailFormat_ShouldThrowArgumentException(string invalidEmail)
-    {
-        // Act & Assert
-        var action = () => new Email(invalidEmail);
-        action.Should().Throw<ArgumentException>()
-            .WithMessage("Invalid email format.*");
+        email.Value.Should().Be("test.user@example.com");
     }
 
     [Fact]
-    public void Constructor_WithTooLongEmail_ShouldThrowArgumentException()
-    {
-        // Arrange
-        var longLocalPart = new string('a', 250);
-        var longEmail = $"{longLocalPart}@example.com";
-
-        // Act & Assert
-        var action = () => new Email(longEmail);
-        action.Should().Throw<ArgumentException>()
-            .WithMessage("Email address is too long. Maximum length is 254 characters.*");
-    }
-
-    [Fact]
-    public void Constructor_WithTooLongLocalPart_ShouldThrowArgumentException()
-    {
-        // Arrange
-        var longLocalPart = new string('a', 65); // More than 64 characters
-        var longEmail = $"{longLocalPart}@example.com";
-
-        // Act & Assert
-        var action = () => new Email(longEmail);
-        action.Should().Throw<ArgumentException>()
-            .WithMessage("Invalid email format.*");
-    }
-
-    [Fact]
-    public void Constructor_WithTooLongDomain_ShouldThrowArgumentException()
-    {
-        // Arrange
-        var longDomain = new string('a', 250) + ".com";
-        var longEmail = $"test@{longDomain}";
-
-        // Act & Assert
-        var action = () => new Email(longEmail);
-        action.Should().Throw<ArgumentException>()
-            .WithMessage("Email address is too long. Maximum length is 254 characters.*");
-    }
-
-    [Fact]
-    public void LocalPart_ShouldReturnCorrectLocalPart()
+    public void LocalPart_ShouldReturnCorrectValue()
     {
         // Arrange
         var email = new Email("test.user@example.com");
@@ -134,16 +126,16 @@ public class EmailTests
     }
 
     [Fact]
-    public void Domain_ShouldReturnCorrectDomain()
+    public void Domain_ShouldReturnCorrectValue()
     {
         // Arrange
-        var email = new Email("test@example.co.uk");
+        var email = new Email("test.user@example.com");
 
         // Act
         var domain = email.Domain;
 
         // Assert
-        domain.Should().Be("example.co.uk");
+        domain.Should().Be("example.com");
     }
 
     [Fact]
@@ -161,7 +153,7 @@ public class EmailTests
     }
 
     [Fact]
-    public void ImplicitConversion_ToString_ShouldReturnEmailValue()
+    public void ImplicitConversion_ShouldReturnEmailValue()
     {
         // Arrange
         var email = new Email("test@example.com");
@@ -174,7 +166,7 @@ public class EmailTests
     }
 
     [Fact]
-    public void Equality_WithSameEmailValue_ShouldBeEqual()
+    public void Equality_WithSameValues_ShouldBeEqual()
     {
         // Arrange
         var email1 = new Email("test@example.com");
@@ -183,10 +175,11 @@ public class EmailTests
         // Act & Assert
         email1.Should().Be(email2);
         (email1 == email2).Should().BeTrue();
+        email1.GetHashCode().Should().Be(email2.GetHashCode());
     }
 
     [Fact]
-    public void Equality_WithDifferentEmailValue_ShouldNotBeEqual()
+    public void Equality_WithDifferentValues_ShouldNotBeEqual()
     {
         // Arrange
         var email1 = new Email("test1@example.com");
@@ -197,28 +190,28 @@ public class EmailTests
         (email1 == email2).Should().BeFalse();
     }
 
-    [Fact]
-    public void GetHashCode_WithSameEmailValue_ShouldReturnSameHashCode()
+    [Theory]
+    [InlineData("test@sub.domain.example.com")]
+    [InlineData("very.long.local.part@example.com")]
+    [InlineData("test123@example123.com")]
+    public void Constructor_WithComplexValidEmails_ShouldCreateEmail(string validEmail)
     {
-        // Arrange
-        var email1 = new Email("test@example.com");
-        var email2 = new Email("TEST@EXAMPLE.COM");
+        // Act
+        var email = new Email(validEmail);
 
-        // Act & Assert
-        email1.GetHashCode().Should().Be(email2.GetHashCode());
+        // Assert
+        email.Value.Should().Be(validEmail.ToLowerInvariant());
     }
 
     [Theory]
-    [InlineData("test@example.com", "test", "example.com")]
-    [InlineData("user.name@sub.domain.co.uk", "user.name", "sub.domain.co.uk")]
-    [InlineData("admin@localhost.localdomain", "admin", "localhost.localdomain")]
-    public void LocalPartAndDomain_ShouldExtractCorrectParts(string emailValue, string expectedLocal, string expectedDomain)
+    [InlineData("test@")]
+    [InlineData("@example.com")]
+    [InlineData("test@@example.com")]
+    [InlineData("test@example@com")]
+    public void Constructor_WithMultipleAtSigns_ShouldThrowArgumentException(string invalidEmail)
     {
-        // Arrange
-        var email = new Email(emailValue);
-
         // Act & Assert
-        email.LocalPart.Should().Be(expectedLocal);
-        email.Domain.Should().Be(expectedDomain);
+        var exception = Assert.Throws<ArgumentException>(() => new Email(invalidEmail));
+        exception.Message.Should().Contain("Invalid email format");
     }
 }

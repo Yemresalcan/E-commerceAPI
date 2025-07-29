@@ -54,4 +54,20 @@ public class OrderQueryService(
             TotalCount = (int)searchResult.TotalCount
         };
     }
+
+    public async Task CheckHealthAsync(CancellationToken cancellationToken = default)
+    {
+        logger.LogDebug("Checking order query service health");
+        
+        // Test basic search functionality
+        var searchRequest = new OrderSearchRequest
+        {
+            Query = "",
+            Page = 1,
+            PageSize = 1
+        };
+        
+        await orderSearchService.SearchOrdersAsync(searchRequest, cancellationToken);
+        logger.LogDebug("Order query service health check passed");
+    }
 }

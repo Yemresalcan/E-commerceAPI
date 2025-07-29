@@ -10,8 +10,12 @@ namespace ECommerce.Infrastructure.Repositories;
 /// </summary>
 public class ProductRepository : Repository<Product>, IProductRepository
 {
-    public ProductRepository(ECommerceDbContext context) : base(context)
+    private readonly ILogger<ProductRepository> _productLogger;
+
+    public ProductRepository(ECommerceDbContext context, ILogger<ProductRepository> logger, ILogger<Repository<Product>> baseLogger) 
+        : base(context, baseLogger)
     {
+        _productLogger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>
@@ -30,12 +34,31 @@ public class ProductRepository : Repository<Product>, IProductRepository
     /// </summary>
     public async Task<Product?> GetBySkuAsync(string sku, CancellationToken cancellationToken = default)
     {
-        if (string.IsNullOrWhiteSpace(sku))
-            return null;
+        using (_productLogger.BeginRepositoryScope("ProductRepository", "GetBySku"))
+        {
+            if (string.IsNullOrWhiteSpace(sku))
+            {
+                _productLogger.LogDebug("GetBySkuAsync called with null or empty SKU");
+                return null;
+            }
 
-        return await _dbSet
-            .Include(p => p.Reviews)
-            .FirstOrDefaultAsync(p => p.Sku == sku, cancellationToken);
+            _productLogger.LogDebug("Getting product by SKU: {Sku}", sku);
+            
+            var result = await _dbSet
+                .Include(p => p.Reviews)
+                .FirstOrDefaultAsync(p => p.Sku == sku, cancellationToken);
+
+            if (result == null)
+            {
+                _productLogger.LogDebug("Product with SKU {Sku} not found", sku);
+            }
+            else
+            {
+                _productLogger.LogDebug("Successfully retrieved product {ProductId} with SKU: {Sku}", result.Id, sku);
+            }
+
+            return result;
+        }
     }
 
     /// <summary>

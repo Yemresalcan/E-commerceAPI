@@ -86,4 +86,20 @@ public class ProductQueryService(
         var product = await productSearchService.GetDocumentAsync(productId, cancellationToken);
         return product == null ? null : mapper.Map<ProductDto>(product);
     }
+
+    public async Task CheckHealthAsync(CancellationToken cancellationToken = default)
+    {
+        logger.LogDebug("Checking product query service health");
+        
+        // Test basic search functionality
+        var searchRequest = new ProductSearchRequest
+        {
+            Query = "",
+            Page = 1,
+            PageSize = 1
+        };
+        
+        await productSearchService.SearchProductsAsync(searchRequest, cancellationToken);
+        logger.LogDebug("Product query service health check passed");
+    }
 }

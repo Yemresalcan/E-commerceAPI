@@ -11,8 +11,12 @@ namespace ECommerce.Infrastructure.Repositories;
 /// </summary>
 public class CustomerRepository : Repository<Customer>, ICustomerRepository
 {
-    public CustomerRepository(ECommerceDbContext context) : base(context)
+    private readonly ILogger<CustomerRepository> _customerLogger;
+
+    public CustomerRepository(ECommerceDbContext context, ILogger<CustomerRepository> logger, ILogger<Repository<Customer>> baseLogger) 
+        : base(context, baseLogger)
     {
+        _customerLogger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     /// <summary>

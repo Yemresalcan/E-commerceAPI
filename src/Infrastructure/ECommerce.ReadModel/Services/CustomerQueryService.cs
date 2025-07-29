@@ -60,4 +60,20 @@ public class CustomerQueryService(
             TotalCount = (int)searchResult.TotalCount
         };
     }
+
+    public async Task CheckHealthAsync(CancellationToken cancellationToken = default)
+    {
+        logger.LogDebug("Checking customer query service health");
+        
+        // Test basic search functionality
+        var searchRequest = new CustomerSearchRequest
+        {
+            Query = "",
+            Page = 1,
+            PageSize = 1
+        };
+        
+        await customerSearchService.SearchCustomersAsync(searchRequest, cancellationToken);
+        logger.LogDebug("Customer query service health check passed");
+    }
 }

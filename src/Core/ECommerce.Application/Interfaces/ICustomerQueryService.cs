@@ -18,4 +18,9 @@ public interface ICustomerQueryService
     /// Gets customers with pagination and filtering
     /// </summary>
     Task<PagedResult<CustomerDto>> GetCustomersAsync(GetCustomersQuery query, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Checks the health of the customer query service
+    /// </summary>
+    Task CheckHealthAsync(CancellationToken cancellationToken = default);
 }

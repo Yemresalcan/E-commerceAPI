@@ -23,4 +23,9 @@ public interface IProductQueryService
     /// Gets a single product by ID
     /// </summary>
     Task<ProductDto?> GetProductByIdAsync(Guid productId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Checks the health of the product query service
+    /// </summary>
+    Task CheckHealthAsync(CancellationToken cancellationToken = default);
 }
