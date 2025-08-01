@@ -11,14 +11,35 @@ public static class ProductIndexConfiguration
     public const string IndexName = "products";
 
     /// <summary>
-    /// Creates the index mapping for products
+    /// Creates the optimized index mapping for products with performance enhancements
     /// </summary>
     public static CreateIndexDescriptor GetIndexMapping(string indexName)
     {
         return new CreateIndexDescriptor(indexName)
             .Settings(s => s
-                .NumberOfShards(1)
+                .NumberOfShards(5) // Optimized for better performance with larger datasets
                 .NumberOfReplicas(1)
+                .RefreshInterval("30s") // Optimized refresh interval for better indexing performance
+                .Setting("index.max_result_window", 100000) // Increased for deep pagination
+                .Setting("index.max_inner_result_window", 100000) // For nested queries
+                .Setting("index.max_terms_count", 100000) // For terms aggregations
+                .Setting("index.max_regex_length", 10000) // For regex queries
+                .Setting("index.query.default_field", "name") // Default search field
+                .Setting("index.blocks.read_only_allow_delete", false) // Prevent read-only mode
+                .Setting("index.mapping.total_fields.limit", 2000) // Increase field limit
+                .Setting("index.mapping.depth.limit", 20) // Increase nesting depth
+                .Setting("index.mapping.nested_fields.limit", 100) // Increase nested fields
+                .Setting("index.mapping.nested_objects.limit", 10000) // Increase nested objects
+                .Setting("index.highlight.max_analyzed_offset", 1000000) // For highlighting
+                .Setting("index.max_docvalue_fields_search", 200) // For aggregations
+                .Setting("index.max_script_fields", 100) // For script fields
+                .Setting("index.max_rescore_window", 10000) // For rescoring
+                .Setting("index.search.slowlog.threshold.query.warn", "10s") // Slow query logging
+                .Setting("index.search.slowlog.threshold.query.info", "5s")
+                .Setting("index.search.slowlog.threshold.query.debug", "2s")
+                .Setting("index.search.slowlog.threshold.fetch.warn", "1s")
+                .Setting("index.indexing.slowlog.threshold.index.warn", "10s")
+                .Setting("index.indexing.slowlog.threshold.index.info", "5s")
                 .Analysis(a => a
                     .Analyzers(an => an
                         .Standard("standard_analyzer", sa => sa
@@ -36,12 +57,49 @@ public static class ProductIndexConfiguration
                             .Tokenizer("standard")
                             .Filters("lowercase")
                         )
+                        .Custom("search_analyzer", ca => ca
+                            .Tokenizer("standard")
+                            .Filters("lowercase", "stop", "snowball", "synonym")
+                        )
                     )
                     .Tokenizers(t => t
                         .EdgeNGram("autocomplete_tokenizer", en => en
-                            .MinGram(1)
+                            .MinGram(2) // Increased min gram for better performance
                             .MaxGram(20)
                             .TokenChars(TokenChar.Letter, TokenChar.Digit)
+                        )
+                    )
+                    .TokenFilters(tf => tf
+                        .Synonym("synonym", sy => sy
+                            .Synonyms(
+                                "smartphone,mobile,phone,cellphone",
+                                "laptop,notebook,computer,pc",
+                                "tv,television,monitor,display",
+                                "headphones,earphones,earbuds,headset",
+                                "tablet,ipad,slate",
+                                "watch,smartwatch,timepiece",
+                                "camera,camcorder,webcam",
+                                "speaker,audio,sound",
+                                "gaming,game,console,xbox,playstation",
+                                "storage,disk,drive,ssd,hdd"
+                            )
+                        )
+                        .Stop("stop_filter", st => st
+                            .StopWords("_english_")
+                        )
+                        .Stemmer("stemmer_filter", sm => sm
+                            .Language("english")
+                        )
+                        .Lowercase("lowercase_filter")
+                        .Trim("trim_filter")
+                        .WordDelimiter("word_delimiter_filter", wd => wd
+                            .GenerateWordParts(true)
+                            .GenerateNumberParts(true)
+                            .CatenateWords(false)
+                            .CatenateNumbers(false)
+                            .CatenateAll(false)
+                            .SplitOnCaseChange(true)
+                            .PreserveOriginal(false)
                         )
                     )
                 )

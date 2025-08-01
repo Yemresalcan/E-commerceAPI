@@ -2,6 +2,7 @@ using ECommerce.Domain.Aggregates.CustomerAggregate;
 using ECommerce.Domain.Aggregates.OrderAggregate;
 using ECommerce.Domain.Aggregates.ProductAggregate;
 using ECommerce.Domain.ValueObjects;
+using ECommerce.Infrastructure.Persistence.Configurations;
 using Microsoft.EntityFrameworkCore;
 
 namespace ECommerce.Infrastructure.Persistence;
@@ -37,17 +38,16 @@ public class ECommerceDbContext : DbContext
         // Configure Value Objects as Owned Types
         ConfigureValueObjects(modelBuilder);
 
-        // Apply all entity configurations
-        // TODO: Fix entity configurations to match actual domain entities
-        // modelBuilder.ApplyConfiguration(new ProductConfiguration());
-        // modelBuilder.ApplyConfiguration(new CategoryConfiguration());
-        // modelBuilder.ApplyConfiguration(new ProductReviewConfiguration());
+        // Apply all entity configurations with performance optimizations
+        modelBuilder.ApplyConfiguration(new ProductConfiguration());
+        modelBuilder.ApplyConfiguration(new CategoryConfiguration());
+        modelBuilder.ApplyConfiguration(new ProductReviewConfiguration());
         
-        // modelBuilder.ApplyConfiguration(new OrderConfiguration());
-        // modelBuilder.ApplyConfiguration(new OrderItemConfiguration());
+        modelBuilder.ApplyConfiguration(new OrderConfiguration());
+        modelBuilder.ApplyConfiguration(new OrderItemConfiguration());
         // modelBuilder.ApplyConfiguration(new PaymentConfiguration());
         
-        // modelBuilder.ApplyConfiguration(new CustomerConfiguration());
+        modelBuilder.ApplyConfiguration(new CustomerConfiguration());
         // modelBuilder.ApplyConfiguration(new AddressConfiguration());
         // modelBuilder.ApplyConfiguration(new ProfileConfiguration());
 
@@ -71,6 +71,8 @@ public class ECommerceDbContext : DbContext
             {
                 email.Property(e => e.Value).HasColumnName("Email").HasMaxLength(255);
             });
+
+        // Email index will be added manually due to owned type complexity
 
         // Configure PhoneNumber value object for Customer (nullable)
         modelBuilder.Entity<Customer>()
@@ -101,14 +103,7 @@ public class ECommerceDbContext : DbContext
 
     protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
     {
-        if (!optionsBuilder.IsConfigured)
-        {
-            // This will be overridden by dependency injection configuration
-            optionsBuilder.UseNpgsql();
-        }
-
-        // Enable sensitive data logging in development
-        optionsBuilder.EnableSensitiveDataLogging();
-        optionsBuilder.EnableDetailedErrors();
+        // Don't configure anything here when using DbContext pooling
+        // Configuration is handled in DI registration
     }
 }

@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Options;
 using Nest;
 using ECommerce.ReadModel.Configuration;
+using ECommerce.Application.Interfaces;
 
 namespace ECommerce.ReadModel.Services;
 
@@ -12,16 +13,19 @@ public abstract class BaseElasticsearchService<T> : IElasticsearchService<T> whe
     protected readonly IElasticClient _elasticClient;
     protected readonly ElasticsearchSettings _settings;
     protected readonly ILogger<BaseElasticsearchService<T>> _logger;
+    protected readonly ICacheService? _cacheService;
     protected abstract string IndexName { get; }
 
     protected BaseElasticsearchService(
         IElasticClient elasticClient,
         IOptions<ElasticsearchSettings> settings,
-        ILogger<BaseElasticsearchService<T>> logger)
+        ILogger<BaseElasticsearchService<T>> logger,
+        ICacheService? cacheService = null)
     {
         _elasticClient = elasticClient;
         _settings = settings.Value;
         _logger = logger;
+        _cacheService = cacheService;
     }
 
     /// <summary>
@@ -162,6 +166,52 @@ public abstract class BaseElasticsearchService<T> : IElasticsearchService<T> whe
         {
             _logger.LogError(ex, "Exception occurred during search");
             throw;
+        }
+    }
+
+    /// <summary>
+    /// Cached search method for better performance
+    /// </summary>
+    protected virtual async Task<ISearchResponse<T>> CachedSearchAsync(
+        SearchDescriptor<T> searchDescriptor, 
+        string cacheKey, 
+        TimeSpan cacheDuration,
+        CancellationToken cancellationToken = default)
+    {
+        if (_cacheService == null)
+        {
+            return await SearchAsync(searchDescriptor, cancellationToken);
+        }
+
+        try
+        {
+            var cached = await _cacheService.GetAsync<SearchResponse<T>>(cacheKey, cancellationToken);
+            if (cached != null)
+            {
+                _logger.LogDebug("Cache hit for Elasticsearch search: {CacheKey}", cacheKey);
+                return cached;
+            }
+
+            _logger.LogDebug("Cache miss for Elasticsearch search: {CacheKey}", cacheKey);
+            var response = await SearchAsync(searchDescriptor, cancellationToken);
+
+            if (response.IsValid && response.Documents.Any())
+            {
+                // Only cache successful responses with results
+                if (response is SearchResponse<T> searchResponse)
+                {
+                    await _cacheService.SetAsync(cacheKey, searchResponse, cacheDuration, cancellationToken);
+                    _logger.LogDebug("Cached Elasticsearch search result: {CacheKey}", cacheKey);
+                }
+            }
+
+            return response;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception occurred during cached search");
+            // Fallback to non-cached search
+            return await SearchAsync(searchDescriptor, cancellationToken);
         }
     }
 

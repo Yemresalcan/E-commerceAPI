@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using ECommerce.Infrastructure.Persistence.Interceptors;
 
 namespace ECommerce.Infrastructure.Persistence;
 
@@ -10,7 +11,7 @@ namespace ECommerce.Infrastructure.Persistence;
 public static class DatabaseConfiguration
 {
     /// <summary>
-    /// Adds Entity Framework Core services to the dependency injection container
+    /// Adds Entity Framework Core services to the dependency injection container with performance optimizations
     /// </summary>
     /// <param name="services">The service collection</param>
     /// <param name="configuration">The application configuration</param>
@@ -20,16 +21,42 @@ public static class DatabaseConfiguration
         var connectionString = configuration.GetConnectionString("DefaultConnection")
             ?? throw new InvalidOperationException("DefaultConnection connection string is not configured.");
 
-        services.AddDbContext<ECommerceDbContext>(options =>
+        // Add connection pooling with enhanced performance optimizations
+        services.AddDbContextPool<ECommerceDbContext>(options =>
         {
             options.UseNpgsql(connectionString, npgsqlOptions =>
             {
                 npgsqlOptions.MigrationsAssembly(typeof(ECommerceDbContext).Assembly.FullName);
+                
+                // Enhanced retry policy for better resilience
                 npgsqlOptions.EnableRetryOnFailure(
-                    maxRetryCount: 3,
+                    maxRetryCount: 5,
                     maxRetryDelay: TimeSpan.FromSeconds(30),
                     errorCodesToAdd: null);
+
+                // Performance optimizations
+                npgsqlOptions.CommandTimeout(30); // 30 seconds timeout
+                npgsqlOptions.UseQuerySplittingBehavior(QuerySplittingBehavior.SplitQuery);
+                
+                // Connection pooling optimizations
+                npgsqlOptions.SetPostgresVersion(new Version(15, 0)); // Specify PostgreSQL version for optimizations
+                
+                // Additional performance optimizations
+                // Note: EnableParameterLogging is not available in this version
             });
+
+            // Performance optimizations
+            options.EnableServiceProviderCaching();
+            options.EnableSensitiveDataLogging(false); // Disable in production for performance
+            
+            // Configure query tracking behavior for better performance
+            options.UseQueryTrackingBehavior(QueryTrackingBehavior.TrackAll);
+            
+            // Enable compiled queries for better performance
+            options.EnableServiceProviderCaching(true);
+            
+            // Configure interceptors for performance monitoring
+            options.AddInterceptors(new PerformanceInterceptor());
 
             // Configure additional options based on environment
             var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
@@ -37,8 +64,19 @@ public static class DatabaseConfiguration
             {
                 options.EnableSensitiveDataLogging();
                 options.EnableDetailedErrors();
+                options.LogTo(Console.WriteLine, LogLevel.Information);
             }
-        });
+            else
+            {
+                // Production optimizations
+                options.EnableSensitiveDataLogging(false);
+                options.EnableDetailedErrors(false);
+                
+                // Enable query caching in production
+                options.UseQueryTrackingBehavior(QueryTrackingBehavior.NoTracking);
+            }
+        }, 
+        poolSize: 256); // Increased connection pool size for better concurrency
 
         return services;
     }

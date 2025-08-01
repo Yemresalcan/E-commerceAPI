@@ -130,7 +130,7 @@ public class CustomerRepository : Repository<Customer>, ICustomerRepository
     /// <summary>
     /// Gets customers with pagination support
     /// </summary>
-    public async Task<(IEnumerable<Customer> Customers, int TotalCount)> GetPagedAsync(
+    public new async Task<(IEnumerable<Customer> Customers, int TotalCount)> GetPagedAsync(
         int pageNumber, 
         int pageSize, 
         CancellationToken cancellationToken = default)
@@ -155,7 +155,7 @@ public class CustomerRepository : Repository<Customer>, ICustomerRepository
     /// <summary>
     /// Gets customers by multiple identifiers
     /// </summary>
-    public async Task<IEnumerable<Customer>> GetByIdsAsync(
+    public new async Task<IEnumerable<Customer>> GetByIdsAsync(
         IEnumerable<Guid> customerIds, 
         CancellationToken cancellationToken = default)
     {

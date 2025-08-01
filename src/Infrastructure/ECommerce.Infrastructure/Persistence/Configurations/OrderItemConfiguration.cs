@@ -5,7 +5,7 @@ using Microsoft.EntityFrameworkCore.Metadata.Builders;
 namespace ECommerce.Infrastructure.Persistence.Configurations;
 
 /// <summary>
-/// Entity Framework configuration for the OrderItem entity
+/// Entity Framework configuration for the OrderItem entity with performance optimizations
 /// </summary>
 public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
 {
@@ -37,9 +37,7 @@ public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
             .IsRequired()
             .HasMaxLength(255);
 
-        builder.Property(oi => oi.ProductSku)
-            .IsRequired()
-            .HasMaxLength(50);
+        // ProductSku is not part of the OrderItem entity
 
         builder.Property(oi => oi.Quantity)
             .IsRequired();
@@ -48,12 +46,26 @@ public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
         builder.OwnsOne(oi => oi.UnitPrice, money =>
         {
             money.Property(m => m.Amount)
-                .HasColumnName("UnitPrice")
+                .HasColumnName("UnitPrice_Amount")
                 .HasPrecision(18, 2)
                 .IsRequired();
 
             money.Property(m => m.Currency)
-                .HasColumnName("Currency")
+                .HasColumnName("UnitPrice_Currency")
+                .HasMaxLength(3)
+                .IsRequired();
+        });
+
+        // Configure Money value object for Discount
+        builder.OwnsOne(oi => oi.Discount, money =>
+        {
+            money.Property(m => m.Amount)
+                .HasColumnName("Discount_Amount")
+                .HasPrecision(18, 2)
+                .IsRequired();
+
+            money.Property(m => m.Currency)
+                .HasColumnName("Discount_Currency")
                 .HasMaxLength(3)
                 .IsRequired();
         });
@@ -66,30 +78,17 @@ public class OrderItemConfiguration : IEntityTypeConfiguration<OrderItem>
 
         // Performance Optimized Indexes
         
-        // Primary index for order items lookup
-        builder.HasIndex(oi => new { oi.OrderId, oi.ProductId })
-            .HasDatabaseName("IX_OrderItems_Order_Product")
-            .IncludeProperties(oi => new { oi.Quantity, oi.UnitPrice, oi.ProductName });
+        // Index for order items lookup
+        builder.HasIndex(oi => new { oi.OrderId, oi.ProductId });
 
         // Index for product sales analysis
-        builder.HasIndex(oi => new { oi.ProductId, oi.CreatedAt })
-            .HasDatabaseName("IX_OrderItems_Product_Created")
-            .IncludeProperties(oi => new { oi.Quantity, oi.UnitPrice, oi.OrderId });
+        builder.HasIndex(oi => new { oi.ProductId, oi.CreatedAt });
 
         // Index for order totals calculation
-        builder.HasIndex(oi => oi.OrderId)
-            .HasDatabaseName("IX_OrderItems_Order")
-            .IncludeProperties(oi => new { oi.Quantity, oi.UnitPrice });
+        builder.HasIndex(oi => oi.OrderId);
 
         // Index for product popularity queries
-        builder.HasIndex(oi => oi.ProductId)
-            .HasDatabaseName("IX_OrderItems_Product")
-            .IncludeProperties(oi => new { oi.Quantity, oi.CreatedAt });
-
-        // Index for SKU-based queries
-        builder.HasIndex(oi => new { oi.ProductSku, oi.CreatedAt })
-            .HasDatabaseName("IX_OrderItems_ProductSku_Created")
-            .IncludeProperties(oi => new { oi.Quantity, oi.UnitPrice });
+        builder.HasIndex(oi => oi.ProductId);
 
         // Ignore calculated properties
         builder.Ignore(oi => oi.TotalPrice);

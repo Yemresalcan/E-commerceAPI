@@ -1,6 +1,8 @@
 using ECommerce.Application.Interfaces;
+using ECommerce.Domain.Interfaces;
 using ECommerce.Infrastructure.Caching;
 using ECommerce.Infrastructure.Messaging;
+using ECommerce.Infrastructure.Repositories;
 using Microsoft.Extensions.Configuration;
 using StackExchange.Redis;
 
@@ -26,6 +28,9 @@ public static class DependencyInjection
 
         // Add caching services
         services.AddRedisCaching(configuration);
+
+        // Add repository services
+        services.AddRepositories();
 
         // TODO: Add other infrastructure services (persistence, etc.)
 
@@ -81,6 +86,22 @@ public static class DependencyInjection
         // Register cache services
         services.AddScoped<ICacheService, RedisCacheService>();
         services.AddScoped<ICacheInvalidationService, CacheInvalidationService>();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Adds repository services to the service collection
+    /// </summary>
+    /// <param name="services">The service collection</param>
+    /// <returns>The service collection</returns>
+    private static IServiceCollection AddRepositories(this IServiceCollection services)
+    {
+        // Register repositories
+        services.AddScoped<IProductRepository, ProductRepository>();
+        services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<ICustomerRepository, CustomerRepository>();
+        services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;
     }

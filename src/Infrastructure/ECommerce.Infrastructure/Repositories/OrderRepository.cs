@@ -133,7 +133,7 @@ public class OrderRepository : Repository<Order>, IOrderRepository
     /// <summary>
     /// Gets orders with pagination support
     /// </summary>
-    public async Task<(IEnumerable<Order> Orders, int TotalCount)> GetPagedAsync(
+    public new async Task<(IEnumerable<Order> Orders, int TotalCount)> GetPagedAsync(
         int pageNumber, 
         int pageSize, 
         CancellationToken cancellationToken = default)

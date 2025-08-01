@@ -3,6 +3,7 @@ using ECommerce.ReadModel.Configurations;
 using ECommerce.ReadModel.Models;
 using Microsoft.Extensions.Options;
 using Nest;
+using ECommerce.Application.Interfaces;
 
 namespace ECommerce.ReadModel.Services;
 
@@ -16,8 +17,9 @@ public class ProductSearchService : BaseElasticsearchService<ProductReadModel>, 
     public ProductSearchService(
         IElasticClient elasticClient,
         IOptions<ElasticsearchSettings> settings,
-        ILogger<ProductSearchService> logger)
-        : base(elasticClient, settings, logger)
+        ILogger<ProductSearchService> logger,
+        ICacheService? cacheService = null)
+        : base(elasticClient, settings, logger, cacheService)
     {
     }
 
@@ -58,17 +60,26 @@ public class ProductSearchService : BaseElasticsearchService<ProductReadModel>, 
                         .MultiMatch(mm => mm
                             .Query(query)
                             .Fields(f => f
-                                .Field(p => p.Name, 2.0)
-                                .Field(p => p.Description)
-                                .Field(p => p.Sku, 1.5)
-                                .Field(p => p.Category.Name)
+                                .Field(p => p.Name, 3.0) // Increased boost for name
+                                .Field(p => p.Name.Suffix("autocomplete"), 2.0) // Boost autocomplete
+                                .Field(p => p.Description, 1.0)
+                                .Field(p => p.Sku, 2.5) // Increased boost for SKU
+                                .Field(p => p.Category.Name, 1.5)
+                                .Field(p => p.Tags, 1.2) // Added tags field
                             )
                             .Type(TextQueryType.BestFields)
                             .Fuzziness(Fuzziness.Auto)
+                            .MinimumShouldMatch("75%") // Improved relevance
                         )
                     )
                     .Filter(f => f
                         .Term(t => t.IsActive, true)
+                    )
+                    .Should(s => s // Boost popular products
+                        .Range(r => r
+                            .Field(p => p.AverageRating)
+                            .GreaterThanOrEquals(4.0)
+                        )
                     )
                 )
             )
@@ -76,6 +87,7 @@ public class ProductSearchService : BaseElasticsearchService<ProductReadModel>, 
                 .Descending(SortSpecialField.Score)
                 .Descending(p => p.IsFeatured)
                 .Descending(p => p.AverageRating)
+                .Descending(p => p.ReviewCount) // Added review count for better sorting
             )
             .Highlight(h => h
                 .Fields(f => f
@@ -84,7 +96,11 @@ public class ProductSearchService : BaseElasticsearchService<ProductReadModel>, 
                 )
                 .PreTags("<mark>")
                 .PostTags("</mark>")
-            );
+                .FragmentSize(150) // Optimized fragment size
+                .NumberOfFragments(2)
+            )
+            .Source(s => s.Excludes(e => e.Field(p => p.Description))) // Exclude large fields for performance
+            .TrackTotalHits(true); // Enable accurate total count
 
         return await SearchAsync(searchDescriptor, cancellationToken);
     }
@@ -120,9 +136,15 @@ public class ProductSearchService : BaseElasticsearchService<ProductReadModel>, 
                 )
                 .PreTags("<mark>")
                 .PostTags("</mark>")
-            );
+            )
+            .Source(s => s.Excludes(e => e.Field(p => p.Description))) // Exclude large fields for performance
+            .TrackTotalHits(true);
 
-        var response = await SearchAsync(searchDescriptor, cancellationToken);
+        // Generate cache key for this search with performance optimization
+        var cacheKey = GenerateSearchCacheKey(request);
+        var cacheDuration = GetCacheDurationForSearch(request);
+
+        var response = await CachedSearchAsync(searchDescriptor, cacheKey, cacheDuration, cancellationToken);
 
         return new ProductSearchResult
         {
@@ -361,5 +383,139 @@ public class ProductSearchService : BaseElasticsearchService<ProductReadModel>, 
         }
 
         return facets;
+    }
+
+    /// <summary>
+    /// Generates a cache key for product search requests
+    /// </summary>
+    private string GenerateSearchCacheKey(ProductSearchRequest request)
+    {
+        var keyParts = new List<string>
+        {
+            "product_search",
+            request.Query ?? "all",
+            request.Page.ToString(),
+            request.PageSize.ToString(),
+            request.SortBy ?? "relevance"
+        };
+
+        if (request.CategoryId.HasValue)
+            keyParts.Add($"cat_{request.CategoryId}");
+
+        if (request.MinPrice.HasValue)
+            keyParts.Add($"minp_{request.MinPrice}");
+
+        if (request.MaxPrice.HasValue)
+            keyParts.Add($"maxp_{request.MaxPrice}");
+
+        if (request.InStockOnly == true)
+            keyParts.Add("instock");
+
+        if (request.FeaturedOnly == true)
+            keyParts.Add("featured");
+
+        if (request.MinRating.HasValue)
+            keyParts.Add($"rating_{request.MinRating}");
+
+        if (request.Tags?.Any() == true)
+            keyParts.Add($"tags_{string.Join("_", request.Tags.OrderBy(t => t))}");
+
+        return string.Join(":", keyParts).ToLowerInvariant();
+    }
+
+    /// <summary>
+    /// Gets optimized cache duration based on search request characteristics
+    /// </summary>
+    private TimeSpan GetCacheDurationForSearch(ProductSearchRequest request)
+    {
+        // Popular searches (no filters) - cache longer
+        if (string.IsNullOrEmpty(request.Query) && !request.CategoryId.HasValue && 
+            !request.MinPrice.HasValue && !request.MaxPrice.HasValue)
+        {
+            return TimeSpan.FromMinutes(30);
+        }
+
+        // Category-based searches - cache moderately
+        if (request.CategoryId.HasValue && string.IsNullOrEmpty(request.Query))
+        {
+            return TimeSpan.FromMinutes(20);
+        }
+
+        // Text searches - cache shorter due to personalization
+        if (!string.IsNullOrEmpty(request.Query))
+        {
+            return TimeSpan.FromMinutes(10);
+        }
+
+        // Complex filtered searches - cache shortest
+        if (request.MinPrice.HasValue || request.MaxPrice.HasValue || 
+            request.Tags?.Any() == true || request.MinRating.HasValue)
+        {
+            return TimeSpan.FromMinutes(5);
+        }
+
+        // Default cache duration
+        return TimeSpan.FromMinutes(15);
+    }
+
+    /// <summary>
+    /// Optimized search with request preprocessing
+    /// </summary>
+    private SearchDescriptor<ProductReadModel> OptimizeSearchDescriptor(SearchDescriptor<ProductReadModel> descriptor, ProductSearchRequest request)
+    {
+        // Add request timeout for performance
+        descriptor.Timeout("30s");
+
+        // Optimize source filtering - exclude large fields by default
+        descriptor.Source(s => s.Excludes(e => e.Field(p => p.Description)));
+
+        // Add preference for consistent shard routing
+        if (!string.IsNullOrEmpty(request.Query))
+        {
+            descriptor.Preference($"search_{request.Query.GetHashCode()}");
+        }
+
+        // Enable query cache for repeated queries
+        descriptor.RequestCache(true);
+
+        // Optimize batch size for large result sets
+        if (request.PageSize > 50)
+        {
+            descriptor.BatchedReduceSize(512);
+        }
+
+        return descriptor;
+    }
+
+    /// <summary>
+    /// Pre-processes search request for better performance
+    /// </summary>
+    private ProductSearchRequest PreprocessSearchRequest(ProductSearchRequest request)
+    {
+        // Normalize and optimize search query
+        if (!string.IsNullOrEmpty(request.Query))
+        {
+            request.Query = request.Query.Trim().ToLowerInvariant();
+            
+            // Remove common stop words that don't add value
+            var stopWords = new[] { "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for", "of", "with", "by" };
+            var words = request.Query.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            var filteredWords = words.Where(w => !stopWords.Contains(w) && w.Length > 1);
+            request.Query = string.Join(" ", filteredWords);
+        }
+
+        // Optimize page size
+        if (request.PageSize > 100)
+        {
+            request.PageSize = 100; // Limit max page size for performance
+        }
+
+        // Optimize price ranges
+        if (request.MinPrice.HasValue && request.MaxPrice.HasValue && request.MinPrice > request.MaxPrice)
+        {
+            (request.MinPrice, request.MaxPrice) = (request.MaxPrice, request.MinPrice);
+        }
+
+        return request;
     }
 }

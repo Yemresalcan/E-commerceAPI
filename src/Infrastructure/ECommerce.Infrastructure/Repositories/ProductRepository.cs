@@ -1,5 +1,7 @@
+using ECommerce.Application.Interfaces;
 using ECommerce.Domain.Aggregates.ProductAggregate;
 using ECommerce.Domain.Interfaces;
+using ECommerce.Infrastructure.Caching;
 using ECommerce.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
 
@@ -11,11 +13,22 @@ namespace ECommerce.Infrastructure.Repositories;
 public class ProductRepository : Repository<Product>, IProductRepository
 {
     private readonly ILogger<ProductRepository> _productLogger;
+    private readonly ICacheService? _cacheService;
 
-    public ProductRepository(ECommerceDbContext context, ILogger<ProductRepository> logger, ILogger<Repository<Product>> baseLogger) 
+    // Cache durations for different types of queries
+    private static readonly TimeSpan ProductCacheDuration = TimeSpan.FromMinutes(60);
+    private static readonly TimeSpan ProductListCacheDuration = TimeSpan.FromMinutes(30);
+    private static readonly TimeSpan FeaturedProductsCacheDuration = TimeSpan.FromMinutes(120);
+
+    public ProductRepository(
+        ECommerceDbContext context, 
+        ILogger<ProductRepository> logger, 
+        ILogger<Repository<Product>> baseLogger,
+        ICacheService? cacheService = null) 
         : base(context, baseLogger)
     {
         _productLogger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _cacheService = cacheService;
     }
 
     /// <summary>
@@ -73,14 +86,35 @@ public class ProductRepository : Repository<Product>, IProductRepository
     }
 
     /// <summary>
-    /// Gets featured products
+    /// Gets featured products with caching optimization
     /// </summary>
     public async Task<IEnumerable<Product>> GetFeaturedProductsAsync(CancellationToken cancellationToken = default)
     {
-        return await _dbSet
+        var cacheKey = CacheKeyGenerator.FeaturedProducts();
+        
+        if (_cacheService != null)
+        {
+            var cachedResult = await _cacheService.GetAsync<IEnumerable<Product>>(cacheKey, cancellationToken);
+            if (cachedResult != null)
+            {
+                _productLogger.LogDebug("Cache hit for featured products");
+                return cachedResult;
+            }
+        }
+
+        var products = await _dbSet
             .Where(p => p.IsFeatured && p.IsActive)
             .Include(p => p.Reviews)
             .ToListAsync(cancellationToken);
+
+        // Cache the result
+        if (_cacheService != null && products.Any())
+        {
+            await _cacheService.SetAsync(cacheKey, products, FeaturedProductsCacheDuration, cancellationToken);
+            _productLogger.LogDebug("Cached featured products for {Duration}", FeaturedProductsCacheDuration);
+        }
+
+        return products;
     }
 
     /// <summary>
@@ -126,7 +160,7 @@ public class ProductRepository : Repository<Product>, IProductRepository
     /// <summary>
     /// Gets products with pagination support
     /// </summary>
-    public async Task<(IEnumerable<Product> Products, int TotalCount)> GetPagedAsync(
+    public new async Task<(IEnumerable<Product> Products, int TotalCount)> GetPagedAsync(
         int pageNumber, 
         int pageSize, 
         CancellationToken cancellationToken = default)
@@ -149,7 +183,7 @@ public class ProductRepository : Repository<Product>, IProductRepository
     /// <summary>
     /// Gets products by multiple identifiers
     /// </summary>
-    public async Task<IEnumerable<Product>> GetByIdsAsync(
+    public new async Task<IEnumerable<Product>> GetByIdsAsync(
         IEnumerable<Guid> productIds, 
         CancellationToken cancellationToken = default)
     {
@@ -187,13 +221,34 @@ public class ProductRepository : Repository<Product>, IProductRepository
     }
 
     /// <summary>
-    /// Override GetByIdAsync to include reviews
+    /// Override GetByIdAsync to include reviews with caching optimization
     /// </summary>
     public override async Task<Product?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _dbSet
+        var cacheKey = CacheKeyGenerator.Product(id);
+        
+        if (_cacheService != null)
+        {
+            var cachedResult = await _cacheService.GetAsync<Product>(cacheKey, cancellationToken);
+            if (cachedResult != null)
+            {
+                _productLogger.LogDebug("Cache hit for product {ProductId}", id);
+                return cachedResult;
+            }
+        }
+
+        var product = await _dbSet
             .Include(p => p.Reviews)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
+
+        // Cache the result
+        if (_cacheService != null && product != null)
+        {
+            await _cacheService.SetAsync(cacheKey, product, ProductCacheDuration, cancellationToken);
+            _productLogger.LogDebug("Cached product {ProductId} for {Duration}", id, ProductCacheDuration);
+        }
+
+        return product;
     }
 
     /// <summary>

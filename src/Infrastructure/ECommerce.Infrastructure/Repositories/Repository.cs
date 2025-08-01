@@ -23,13 +23,15 @@ public class Repository<T> : IRepository<T> where T : AggregateRoot
     }
 
     /// <summary>
-    /// Gets an aggregate by its unique identifier
+    /// Gets an aggregate by its unique identifier with performance optimizations
     /// </summary>
     public virtual async Task<T?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
         using (_logger.BeginRepositoryScope(typeof(T).Name, "GetById"))
         {
             _logger.LogDebug("Getting {AggregateType} by ID: {AggregateId}", typeof(T).Name, id);
+            
+            // Use FindAsync for primary key lookups - it's optimized and checks local cache first
             var result = await _dbSet.FindAsync([id], cancellationToken);
             
             if (result == null)
@@ -46,11 +48,20 @@ public class Repository<T> : IRepository<T> where T : AggregateRoot
     }
 
     /// <summary>
-    /// Gets all aggregates
+    /// Gets all aggregates with performance optimizations
     /// </summary>
     public virtual async Task<IEnumerable<T>> GetAllAsync(CancellationToken cancellationToken = default)
     {
-        return await _dbSet.ToListAsync(cancellationToken);
+        using (_logger.BeginRepositoryScope(typeof(T).Name, "GetAll"))
+        {
+            _logger.LogDebug("Getting all {AggregateType} entities", typeof(T).Name);
+            
+            // Use AsNoTracking for read-only operations to improve performance
+            var result = await _dbSet.AsNoTracking().ToListAsync(cancellationToken);
+            
+            _logger.LogDebug("Retrieved {Count} {AggregateType} entities", result.Count, typeof(T).Name);
+            return result;
+        }
     }
 
     /// <summary>
@@ -99,11 +110,74 @@ public class Repository<T> : IRepository<T> where T : AggregateRoot
     }
 
     /// <summary>
-    /// Checks if an aggregate exists with the given identifier
+    /// Checks if an aggregate exists with the given identifier (optimized for performance)
     /// </summary>
     public virtual async Task<bool> ExistsAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        return await _dbSet.AnyAsync(e => e.Id == id, cancellationToken);
+        using (_logger.BeginRepositoryScope(typeof(T).Name, "Exists"))
+        {
+            // Use AsNoTracking for existence checks to improve performance
+            var exists = await _dbSet.AsNoTracking().AnyAsync(e => e.Id == id, cancellationToken);
+            _logger.LogDebug("{AggregateType} with ID {AggregateId} exists: {Exists}", typeof(T).Name, id, exists);
+            return exists;
+        }
+    }
+
+    /// <summary>
+    /// Gets multiple aggregates by their identifiers (batch operation for performance)
+    /// </summary>
+    public virtual async Task<IEnumerable<T>> GetByIdsAsync(IEnumerable<Guid> ids, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+        
+        var idList = ids.ToList();
+        if (!idList.Any())
+            return [];
+
+        using (_logger.BeginRepositoryScope(typeof(T).Name, "GetByIds"))
+        {
+            _logger.LogDebug("Getting {Count} {AggregateType} entities by IDs", idList.Count, typeof(T).Name);
+            
+            var result = await _dbSet
+                .Where(e => idList.Contains(e.Id))
+                .ToListAsync(cancellationToken);
+            
+            _logger.LogDebug("Retrieved {Count} {AggregateType} entities", result.Count, typeof(T).Name);
+            return result;
+        }
+    }
+
+    /// <summary>
+    /// Gets a page of aggregates with performance optimizations
+    /// </summary>
+    public virtual async Task<(IEnumerable<T> Items, int TotalCount)> GetPagedAsync(
+        int pageNumber, 
+        int pageSize, 
+        CancellationToken cancellationToken = default)
+    {
+        if (pageNumber < 1) pageNumber = 1;
+        if (pageSize < 1) pageSize = 10;
+
+        using (_logger.BeginRepositoryScope(typeof(T).Name, "GetPaged"))
+        {
+            _logger.LogDebug("Getting page {PageNumber} of {AggregateType} entities (page size: {PageSize})", 
+                pageNumber, typeof(T).Name, pageSize);
+
+            // Get total count efficiently
+            var totalCount = await _dbSet.CountAsync(cancellationToken);
+            
+            // Get paged results with no tracking for better performance
+            var items = await _dbSet
+                .AsNoTracking()
+                .Skip((pageNumber - 1) * pageSize)
+                .Take(pageSize)
+                .ToListAsync(cancellationToken);
+
+            _logger.LogDebug("Retrieved {Count} {AggregateType} entities (total: {TotalCount})", 
+                items.Count, typeof(T).Name, totalCount);
+
+            return (items, totalCount);
+        }
     }
 
     /// <summary>
