@@ -35,6 +35,9 @@ public class ECommerceDbContext : DbContext
     {
         base.OnModelCreating(modelBuilder);
 
+        // Ignore DomainEvent base class - it's not a database entity
+        modelBuilder.Ignore<ECommerce.Domain.Events.DomainEvent>();
+
         // Configure Value Objects as Owned Types
         ConfigureValueObjects(modelBuilder);
 

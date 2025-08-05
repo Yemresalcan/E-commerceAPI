@@ -94,15 +94,27 @@ public class PlaceOrderCommandHandler(
             logger.LogDebug("Updating product stock quantities");
             foreach (var itemDto in request.OrderItems)
             {
+                // Get fresh product data from database (bypass any caching)
                 var product = await productRepository.GetByIdAsync(itemDto.ProductId, cancellationToken);
-                if (product != null)
+                if (product == null)
                 {
-                    var newStock = product.StockQuantity - itemDto.Quantity;
-                    product.SetStock(newStock, "Order placed");
-                    productRepository.Update(product);
-                    logger.LogDebug("Updated stock for product {ProductId} from {OldStock} to {NewStock}", 
-                        itemDto.ProductId, product.StockQuantity + itemDto.Quantity, newStock);
+                    throw new InvalidOperationException($"Product with ID '{itemDto.ProductId}' not found");
                 }
+
+                logger.LogDebug("Product {ProductId} current stock: {CurrentStock}, requested: {RequestedQuantity}", 
+                    itemDto.ProductId, product.StockQuantity, itemDto.Quantity);
+
+                // Check if we have enough stock before attempting to decrease
+                if (product.StockQuantity < itemDto.Quantity)
+                {
+                    throw new InvalidOperationException($"Insufficient stock for product '{product.Name}'. Available: {product.StockQuantity}, Requested: {itemDto.Quantity}");
+                }
+
+                // Use DecreaseStock method which handles the calculation correctly
+                product.DecreaseStock(itemDto.Quantity, "Order placed");
+                productRepository.Update(product);
+                logger.LogInformation("Successfully decreased stock for product {ProductId} ({ProductName}) by {Quantity}. New stock: {NewStock}", 
+                    itemDto.ProductId, product.Name, itemDto.Quantity, product.StockQuantity);
             }
 
             // Save changes

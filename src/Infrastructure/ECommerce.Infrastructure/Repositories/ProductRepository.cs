@@ -58,7 +58,6 @@ public class ProductRepository : Repository<Product>, IProductRepository
             _productLogger.LogDebug("Getting product by SKU: {Sku}", sku);
             
             var result = await _dbSet
-                .Include(p => p.Reviews)
                 .FirstOrDefaultAsync(p => p.Sku == sku, cancellationToken);
 
             if (result == null)
@@ -221,33 +220,44 @@ public class ProductRepository : Repository<Product>, IProductRepository
     }
 
     /// <summary>
-    /// Override GetByIdAsync to include reviews with caching optimization
+    /// Override GetByIdAsync to get fresh data from database with proper tracking handling
     /// </summary>
     public override async Task<Product?> GetByIdAsync(Guid id, CancellationToken cancellationToken = default)
     {
-        var cacheKey = CacheKeyGenerator.Product(id);
+        _productLogger.LogDebug("Getting product by ID: {ProductId} (fresh from database)", id);
         
-        if (_cacheService != null)
+        // First check if entity is already being tracked
+        var trackedEntity = _context.ChangeTracker.Entries<Product>()
+            .FirstOrDefault(e => e.Entity.Id == id)?.Entity;
+            
+        if (trackedEntity != null)
         {
-            var cachedResult = await _cacheService.GetAsync<Product>(cacheKey, cancellationToken);
-            if (cachedResult != null)
-            {
-                _productLogger.LogDebug("Cache hit for product {ProductId}", id);
-                return cachedResult;
-            }
+            _productLogger.LogDebug("Found tracked product: {ProductName} with stock: {StockQuantity}", 
+                trackedEntity.Name, trackedEntity.StockQuantity);
+            
+            // Reload the entity to get fresh data from database
+            await _context.Entry(trackedEntity).ReloadAsync(cancellationToken);
+            _productLogger.LogDebug("Reloaded product: {ProductName} with updated stock: {StockQuantity}", 
+                trackedEntity.Name, trackedEntity.StockQuantity);
+            
+            return trackedEntity;
         }
-
+        
+        // If not tracked, get fresh data and attach
         var product = await _dbSet
             .Include(p => p.Reviews)
             .FirstOrDefaultAsync(p => p.Id == id, cancellationToken);
-
-        // Cache the result
-        if (_cacheService != null && product != null)
+            
+        if (product != null)
         {
-            await _cacheService.SetAsync(cacheKey, product, ProductCacheDuration, cancellationToken);
-            _productLogger.LogDebug("Cached product {ProductId} for {Duration}", id, ProductCacheDuration);
+            _productLogger.LogDebug("Found product: {ProductName} with stock: {StockQuantity}", 
+                product.Name, product.StockQuantity);
         }
-
+        else
+        {
+            _productLogger.LogWarning("Product not found: {ProductId}", id);
+        }
+        
         return product;
     }
 

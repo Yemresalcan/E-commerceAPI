@@ -30,7 +30,9 @@ public class ElasticsearchClientFactory
             .DefaultIndex($"{_settings.IndexPrefix}-products")
             .RequestTimeout(TimeSpan.FromSeconds(_settings.TimeoutSeconds))
             .MaximumRetries(_settings.MaxRetries)
-            .ThrowExceptions(false);
+            .ThrowExceptions(false)
+            .ServerCertificateValidationCallback((o, certificate, chain, errors) => true)
+            .EnableHttpCompression(false);
 
         // Configure authentication if provided
         if (!string.IsNullOrEmpty(_settings.Username) && !string.IsNullOrEmpty(_settings.Password))

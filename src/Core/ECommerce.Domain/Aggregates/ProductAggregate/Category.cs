@@ -5,7 +5,7 @@ namespace ECommerce.Domain.Aggregates.ProductAggregate;
 /// <summary>
 /// Represents a product category with hierarchical structure support
 /// </summary>
-public class Category : Entity
+public class Category : AggregateRoot
 {
     private readonly List<Category> _children = [];
 

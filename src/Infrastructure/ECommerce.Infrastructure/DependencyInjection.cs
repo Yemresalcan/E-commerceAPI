@@ -23,8 +23,8 @@ public static class DependencyInjection
         this IServiceCollection services, 
         IConfiguration configuration)
     {
-        // Add messaging services (temporarily disabled for demo)
-        // services.AddRabbitMQMessaging(configuration);
+        // Add messaging services
+        services.AddRabbitMQMessaging(configuration);
 
         // Add caching services
         services.AddRedisCaching(configuration);
@@ -101,6 +101,7 @@ public static class DependencyInjection
         services.AddScoped<IProductRepository, ProductRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<ICustomerRepository, CustomerRepository>();
+        services.AddScoped<ICategoryRepository, CategoryRepository>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;

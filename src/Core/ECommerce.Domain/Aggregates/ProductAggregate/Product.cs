@@ -1,6 +1,7 @@
 using ECommerce.Domain.Events;
 using ECommerce.Domain.Exceptions;
 using ECommerce.Domain.ValueObjects;
+using System.Text.Json.Serialization;
 
 namespace ECommerce.Domain.Aggregates.ProductAggregate;
 
@@ -96,7 +97,8 @@ public class Product : AggregateRoot
     /// </summary>
     public bool IsOutOfStock => StockQuantity <= 0;
 
-    // Private constructor for EF Core
+    // Private constructor for EF Core and JSON deserialization
+    [JsonConstructor]
     private Product() : base()
     {
         Name = string.Empty;

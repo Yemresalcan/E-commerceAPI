@@ -32,6 +32,15 @@ public class CategoryConfiguration : IEntityTypeConfiguration<Category>
         builder.Property(c => c.IsActive)
             .IsRequired();
 
+        builder.Property(c => c.Level)
+            .IsRequired();
+
+        // Ignore AggregateRoot properties that we don't want in database
+        builder.Ignore(c => c.Version);
+        builder.Ignore(c => c.CreatedAt);
+        builder.Ignore(c => c.UpdatedAt);
+        builder.Ignore(c => c.DomainEvents);
+
         // Self-referencing relationship for hierarchical categories
         builder.HasOne<Category>()
             .WithMany()

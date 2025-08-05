@@ -38,6 +38,7 @@ public static class DependencyInjection
 
         // Register event handlers
         services.AddScoped<IEventHandler<ProductCreatedEvent>, ProductCreatedEventHandler>();
+        services.AddScoped<IEventHandler<ProductStockUpdatedEvent>, ProductStockUpdatedEventHandler>();
         services.AddScoped<IEventHandler<OrderPlacedEvent>, OrderPlacedEventHandler>();
         services.AddScoped<IEventHandler<CustomerRegisteredEvent>, CustomerRegisteredEventHandler>();
 
@@ -57,6 +58,11 @@ public static class DependencyInjection
         var productCreatedHandler = serviceProvider.GetRequiredService<IEventHandler<ProductCreatedEvent>>();
         await eventBus.SubscribeAsync<ProductCreatedEvent>(async (evt, ct) => 
             await productCreatedHandler.HandleAsync(evt, ct));
+
+        // Subscribe to ProductStockUpdatedEvent
+        var productStockUpdatedHandler = serviceProvider.GetRequiredService<IEventHandler<ProductStockUpdatedEvent>>();
+        await eventBus.SubscribeAsync<ProductStockUpdatedEvent>(async (evt, ct) => 
+            await productStockUpdatedHandler.HandleAsync(evt, ct));
 
         // Subscribe to OrderPlacedEvent
         var orderPlacedHandler = serviceProvider.GetRequiredService<IEventHandler<OrderPlacedEvent>>();

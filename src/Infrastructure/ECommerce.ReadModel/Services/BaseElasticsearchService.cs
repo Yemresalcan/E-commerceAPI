@@ -170,7 +170,7 @@ public abstract class BaseElasticsearchService<T> : IElasticsearchService<T> whe
     }
 
     /// <summary>
-    /// Cached search method for better performance
+    /// Cached search method for better performance - disabled for now due to Elasticsearch response serialization issues
     /// </summary>
     protected virtual async Task<ISearchResponse<T>> CachedSearchAsync(
         SearchDescriptor<T> searchDescriptor, 
@@ -178,41 +178,10 @@ public abstract class BaseElasticsearchService<T> : IElasticsearchService<T> whe
         TimeSpan cacheDuration,
         CancellationToken cancellationToken = default)
     {
-        if (_cacheService == null)
-        {
-            return await SearchAsync(searchDescriptor, cancellationToken);
-        }
-
-        try
-        {
-            var cached = await _cacheService.GetAsync<SearchResponse<T>>(cacheKey, cancellationToken);
-            if (cached != null)
-            {
-                _logger.LogDebug("Cache hit for Elasticsearch search: {CacheKey}", cacheKey);
-                return cached;
-            }
-
-            _logger.LogDebug("Cache miss for Elasticsearch search: {CacheKey}", cacheKey);
-            var response = await SearchAsync(searchDescriptor, cancellationToken);
-
-            if (response.IsValid && response.Documents.Any())
-            {
-                // Only cache successful responses with results
-                if (response is SearchResponse<T> searchResponse)
-                {
-                    await _cacheService.SetAsync(cacheKey, searchResponse, cacheDuration, cancellationToken);
-                    _logger.LogDebug("Cached Elasticsearch search result: {CacheKey}", cacheKey);
-                }
-            }
-
-            return response;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Exception occurred during cached search");
-            // Fallback to non-cached search
-            return await SearchAsync(searchDescriptor, cancellationToken);
-        }
+        // Temporarily disable caching for Elasticsearch responses due to serialization issues
+        // Elasticsearch SearchResponse contains non-serializable objects like IntPtr
+        _logger.LogDebug("Elasticsearch caching disabled - executing direct search for: {CacheKey}", cacheKey);
+        return await SearchAsync(searchDescriptor, cancellationToken);
     }
 
     public abstract Task<ISearchResponse<T>> SimpleSearchAsync(string query, int page = 1, int pageSize = 20, CancellationToken cancellationToken = default);

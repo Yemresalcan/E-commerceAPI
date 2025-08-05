@@ -294,28 +294,28 @@ namespace ECommerce.Infrastructure.Migrations
                 schema: "ecommerce",
                 table: "Categories",
                 column: "IsActive",
-                filter: "IsActive = true");
+                filter: "\"IsActive\" = true");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Categories_Name",
                 schema: "ecommerce",
                 table: "Categories",
                 column: "Name",
-                filter: "IsActive = true");
+                filter: "\"IsActive\" = true");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Categories_ParentId_IsActive",
                 schema: "ecommerce",
                 table: "Categories",
                 columns: new[] { "ParentCategoryId", "IsActive" },
-                filter: "IsActive = true");
+                filter: "\"IsActive\" = true");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Categories_RootCategories",
                 schema: "ecommerce",
                 table: "Categories",
                 column: "ParentCategoryId",
-                filter: "ParentCategoryId IS NULL AND IsActive = true");
+                filter: "\"ParentCategoryId\" IS NULL AND \"IsActive\" = true");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Customers_FirstName_LastName",
@@ -420,7 +420,7 @@ namespace ECommerce.Infrastructure.Migrations
                 schema: "ecommerce",
                 table: "ProductReviews",
                 columns: new[] { "IsApproved", "CreatedAt" },
-                filter: "IsApproved = false");
+                filter: "\"IsApproved\" = false");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ProductReviews_ProductId_CustomerId_Unique",
@@ -435,21 +435,21 @@ namespace ECommerce.Infrastructure.Migrations
                 table: "ProductReviews",
                 columns: new[] { "ProductId", "IsApproved", "CreatedAt" },
                 descending: new[] { false, false, true },
-                filter: "IsApproved = true");
+                filter: "\"IsApproved\" = true");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ProductReviews_ProductId_IsVerified_IsApproved",
                 schema: "ecommerce",
                 table: "ProductReviews",
                 columns: new[] { "ProductId", "IsVerified", "IsApproved" },
-                filter: "IsVerified = true AND IsApproved = true");
+                filter: "\"IsVerified\" = true AND \"IsApproved\" = true");
 
             migrationBuilder.CreateIndex(
                 name: "IX_ProductReviews_ProductId_Rating_IsApproved",
                 schema: "ecommerce",
                 table: "ProductReviews",
                 columns: new[] { "ProductId", "Rating", "IsApproved" },
-                filter: "IsApproved = true");
+                filter: "\"IsApproved\" = true");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Products_CategoryId_IsActive",

@@ -71,9 +71,9 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
             .OnDelete(DeleteBehavior.Cascade);
 
         // Configure relationship with Addresses (one-to-many)
-        builder.HasMany<Address>()
+        builder.HasMany(c => c.Addresses)
             .WithOne()
-            .HasForeignKey(a => a.CustomerId)
+            .HasForeignKey("CustomerId")
             .OnDelete(DeleteBehavior.Cascade);
 
         // Performance Optimized Indexes
@@ -97,7 +97,6 @@ public class CustomerConfiguration : IEntityTypeConfiguration<Customer>
 
         // Ignore domain events and calculated properties
         builder.Ignore(c => c.DomainEvents);
-        builder.Ignore(c => c.Addresses);
         builder.Ignore(c => c.PrimaryAddress);
         builder.Ignore(c => c.FullName);
         builder.Ignore(c => c.HasAddresses);

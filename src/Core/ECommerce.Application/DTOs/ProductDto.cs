@@ -11,6 +11,7 @@ public record ProductDto(
     decimal Price,
     string Currency,
     int StockQuantity,
+    int MinimumStockLevel,
     CategoryDto Category,
     bool IsActive,
     bool IsFeatured,
@@ -28,10 +29,15 @@ public record ProductDto(
 /// <summary>
 /// Data transfer object for category information
 /// </summary>
-public record CategoryDto(
-    Guid Id,
-    string Name,
-    string Description,
-    Guid? ParentCategoryId,
-    string CategoryPath
-);
+public class CategoryDto
+{
+    public Guid Id { get; set; }
+    public string Name { get; set; } = string.Empty;
+    public string Description { get; set; } = string.Empty;
+    public Guid? ParentCategoryId { get; set; }
+    public int Level { get; set; }
+    public bool IsActive { get; set; }
+    public bool IsRoot { get; set; }
+    public bool HasChildren { get; set; }
+    public IEnumerable<CategoryDto>? Children { get; set; }
+}

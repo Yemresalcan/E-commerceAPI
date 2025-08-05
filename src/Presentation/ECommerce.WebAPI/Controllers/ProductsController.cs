@@ -4,6 +4,9 @@ using ECommerce.Application.DTOs;
 using ECommerce.Application.Common.Models;
 using Microsoft.AspNetCore.Mvc;
 using Asp.Versioning;
+using ECommerce.Domain.Interfaces;
+using ECommerce.ReadModel.Services;
+using ECommerce.ReadModel.Models;
 
 namespace ECommerce.WebAPI.Controllers;
 
@@ -14,7 +17,10 @@ namespace ECommerce.WebAPI.Controllers;
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/[controller]")]
 [Produces("application/json")]
-public class ProductsController(IMediator mediator) : ControllerBase
+public class ProductsController(
+    IMediator mediator,
+    IProductRepository productRepository,
+    IProductSearchService productSearchService) : ControllerBase
 {
     /// <summary>
     /// Get products with pagination and filtering
@@ -174,6 +180,32 @@ public class ProductsController(IMediator mediator) : ControllerBase
     }
 
     /// <summary>
+    /// Update product stock quantity
+    /// </summary>
+    /// <param name="id">Product ID</param>
+    /// <param name="stockQuantity">New stock quantity</param>
+    /// <param name="reason">Reason for stock update</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>No content on success</returns>
+    [HttpPatch("{id:guid}/stock")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateProductStock(
+        Guid id,
+        [FromQuery] int stockQuantity,
+        [FromQuery] string reason = "Manual stock update",
+        CancellationToken cancellationToken = default)
+    {
+        if (stockQuantity < 0)
+            return BadRequest("Stock quantity cannot be negative");
+
+        var command = new UpdateProductStockCommand(id, stockQuantity, reason);
+        await mediator.Send(command, cancellationToken);
+        return NoContent();
+    }
+
+    /// <summary>
     /// Delete a product
     /// </summary>
     /// <param name="id">Product ID</param>
@@ -190,5 +222,82 @@ public class ProductsController(IMediator mediator) : ControllerBase
         var command = new DeleteProductCommand(id);
         await mediator.Send(command, cancellationToken);
         return NoContent();
+    }
+
+    /// <summary>
+    /// Sync products from database to Elasticsearch
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Sync result</returns>
+    [HttpPost("sync")]
+    [ProducesResponseType(typeof(object), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+    public async Task<IActionResult> SyncProducts(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Get all products from database
+            var products = await productRepository.GetActiveProductsAsync(cancellationToken);
+            
+            var syncedCount = 0;
+            foreach (var product in products)
+            {
+                // Map domain entity to read model
+                var productReadModel = new ECommerce.ReadModel.Models.ProductReadModel
+                {
+                    Id = product.Id,
+                    Name = product.Name,
+                    Description = product.Description,
+                    Sku = product.Sku,
+                    Price = product.Price.Amount,
+                    Currency = product.Price.Currency,
+                    StockQuantity = product.StockQuantity,
+                    MinimumStockLevel = product.MinimumStockLevel,
+                    IsActive = product.IsActive,
+                    IsFeatured = product.IsFeatured,
+                    Weight = product.Weight,
+                    Dimensions = product.Dimensions,
+                    AverageRating = product.AverageRating,
+                    ReviewCount = product.ReviewCount,
+                    IsInStock = product.IsInStock,
+                    IsLowStock = product.IsLowStock,
+                    IsOutOfStock = product.IsOutOfStock,
+                    CreatedAt = product.CreatedAt,
+                    UpdatedAt = product.UpdatedAt,
+                    Tags = new List<string>(),
+                    Category = new ECommerce.ReadModel.Models.CategoryReadModel
+                    {
+                        Id = product.CategoryId,
+                        Name = "Default Category", // We'll need to get this from category service
+                        Description = "",
+                        ParentCategoryId = null,
+                        CategoryPath = ""
+                    }
+                };
+
+                // Index the product in Elasticsearch
+                var indexed = await productSearchService.IndexDocumentAsync(productReadModel, cancellationToken);
+                if (indexed)
+                {
+                    syncedCount++;
+                }
+            }
+
+            // Refresh the index to make documents searchable immediately
+            await productSearchService.RefreshIndexAsync(cancellationToken);
+
+            return Ok(new { 
+                Message = "Products synced successfully", 
+                SyncedCount = syncedCount,
+                TotalProducts = products.Count()
+            });
+        }
+        catch (Exception ex)
+        {
+            return StatusCode(500, new { 
+                Message = "Error occurred while syncing products", 
+                Error = ex.Message 
+            });
+        }
     }
 }

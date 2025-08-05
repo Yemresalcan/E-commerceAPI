@@ -3,14 +3,16 @@ using ECommerce.Application.Common.Models;
 using ECommerce.Application.DTOs;
 using ECommerce.Application.Interfaces;
 using ECommerce.Application.Queries.Orders;
+using ECommerce.Domain.Interfaces;
 
 namespace ECommerce.ReadModel.Services;
 
 /// <summary>
-/// Implementation of order query service using Elasticsearch
+/// Implementation of order query service using Elasticsearch with database fallback
 /// </summary>
 public class OrderQueryService(
     IOrderSearchService orderSearchService,
+    IOrderRepository orderRepository,
     IMapper mapper,
     ILogger<OrderQueryService> logger)
     : IOrderQueryService
@@ -27,32 +29,52 @@ public class OrderQueryService(
     {
         logger.LogInformation("Getting orders with search term: {SearchTerm}", query.SearchTerm);
 
-        var searchRequest = new OrderSearchRequest
+        try
         {
-            Query = query.SearchTerm,
-            CustomerId = query.CustomerId,
-            Status = query.Status,
-            MinAmount = query.MinAmount,
-            MaxAmount = query.MaxAmount,
-            StartDate = query.StartDate,
-            EndDate = query.EndDate,
-            PaymentMethod = query.PaymentMethod,
-            PaymentStatus = query.PaymentStatus,
-            SortBy = query.SortBy,
-            Page = query.Page,
-            PageSize = query.PageSize
-        };
+            // Try Elasticsearch first
+            var searchRequest = new OrderSearchRequest
+            {
+                Query = query.SearchTerm,
+                CustomerId = query.CustomerId,
+                Status = query.Status,
+                MinAmount = query.MinAmount,
+                MaxAmount = query.MaxAmount,
+                StartDate = query.StartDate,
+                EndDate = query.EndDate,
+                PaymentMethod = query.PaymentMethod,
+                PaymentStatus = query.PaymentStatus,
+                SortBy = query.SortBy,
+                Page = query.Page,
+                PageSize = query.PageSize
+            };
 
-        var searchResult = await orderSearchService.SearchOrdersAsync(searchRequest, cancellationToken);
-        var orderDtos = mapper.Map<IEnumerable<OrderDto>>(searchResult.Orders);
+            var searchResult = await orderSearchService.SearchOrdersAsync(searchRequest, cancellationToken);
+            var orderDtos = mapper.Map<IEnumerable<OrderDto>>(searchResult.Orders);
 
-        return new PagedResult<OrderDto>
+            return new PagedResult<OrderDto>
+            {
+                Items = orderDtos.ToList(),
+                Page = query.Page,
+                PageSize = query.PageSize,
+                TotalCount = (int)searchResult.TotalCount
+            };
+        }
+        catch (Exception ex)
         {
-            Items = orderDtos.ToList(),
-            Page = query.Page,
-            PageSize = query.PageSize,
-            TotalCount = (int)searchResult.TotalCount
-        };
+            logger.LogWarning(ex, "Elasticsearch search failed, falling back to database query");
+            
+            // Fallback to database
+            var (orders, totalCount) = await orderRepository.GetPagedAsync(query.Page, query.PageSize, cancellationToken);
+            var orderDtos = mapper.Map<IEnumerable<OrderDto>>(orders);
+
+            return new PagedResult<OrderDto>
+            {
+                Items = orderDtos.ToList(),
+                Page = query.Page,
+                PageSize = query.PageSize,
+                TotalCount = totalCount
+            };
+        }
     }
 
     public async Task CheckHealthAsync(CancellationToken cancellationToken = default)

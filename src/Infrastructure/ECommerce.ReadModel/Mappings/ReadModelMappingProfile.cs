@@ -14,8 +14,20 @@ public class ReadModelMappingProfile : Profile
     public ReadModelMappingProfile()
     {
         // Product mappings
-        CreateMap<ProductReadModel, ProductDto>();
-        CreateMap<CategoryReadModel, CategoryDto>();
+        CreateMap<ProductReadModel, ProductDto>()
+            .ForMember(dest => dest.Tags, opt => opt.MapFrom(src => src.Tags ?? new List<string>()))
+            .ForMember(dest => dest.Category, opt => opt.MapFrom(src => src.Category));
+        CreateMap<CategoryReadModel, CategoryDto>()
+            .ForMember(dest => dest.Level, opt => opt.MapFrom(src => 0))
+            .ForMember(dest => dest.IsActive, opt => opt.MapFrom(src => true))
+            .ForMember(dest => dest.IsRoot, opt => opt.MapFrom(src => src.ParentCategoryId == null))
+            .ForMember(dest => dest.HasChildren, opt => opt.MapFrom(src => false))
+            .ForMember(dest => dest.Children, opt => opt.MapFrom(src => (IEnumerable<CategoryDto>?)null))
+            .ForMember(dest => dest.ParentCategoryId, opt => opt.MapFrom(src => src.ParentCategoryId));
+        
+        // Domain to DTO mappings
+        CreateMap<ECommerce.Domain.Aggregates.ProductAggregate.Category, CategoryDto>()
+            .ForMember(dest => dest.Children, opt => opt.MapFrom(src => src.Children));
         
         // Order mappings
         CreateMap<OrderReadModel, OrderDto>();

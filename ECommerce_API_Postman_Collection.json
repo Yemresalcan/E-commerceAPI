@@ -1,0 +1,288 @@
+{
+  "info": {
+    "name": "ECommerce API Test Collection",
+    "description": "Test collection for ECommerce API endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "apiVersion",
+      "value": "1.0",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health Checks",
+      "item": [
+        {
+          "name": "Get Overall Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v{{apiVersion}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v{{apiVersion}}", "health"]
+            }
+          }
+        },
+        {
+          "name": "Get Available Components",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v{{apiVersion}}/health/components",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v{{apiVersion}}", "health", "components"]
+            }
+          }
+        },
+        {
+          "name": "Get PostgreSQL Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v{{apiVersion}}/health/postgresql",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v{{apiVersion}}", "health", "postgresql"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "Get All Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v{{apiVersion}}/products?page=1&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v{{apiVersion}}", "products"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Search Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v{{apiVersion}}/products/search?query=laptop&page=1&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v{{apiVersion}}", "products", "search"],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "laptop"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test Laptop\",\n  \"description\": \"High-performance laptop for testing\",\n  \"price\": 999.99,\n  \"categoryId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"sku\": \"LAPTOP-001\",\n  \"stockQuantity\": 50,\n  \"weight\": 2.5,\n  \"dimensions\": {\n    \"length\": 35.0,\n    \"width\": 25.0,\n    \"height\": 2.0\n  },\n  \"tags\": [\"laptop\", \"computer\", \"electronics\"],\n  \"isFeatured\": true,\n  \"isActive\": true\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v{{apiVersion}}/products",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v{{apiVersion}}", "products"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "Get All Customers",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v{{apiVersion}}/customers?page=1&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v{{apiVersion}}", "customers"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Register Customer",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstName\": \"John\",\n  \"lastName\": \"Doe\",\n  \"email\": \"john.doe@example.com\",\n  \"phoneNumber\": \"+1234567890\",\n  \"dateOfBirth\": \"1990-01-15\",\n  \"preferredLanguage\": \"en\",\n  \"address\": {\n    \"street\": \"123 Main St\",\n    \"city\": \"New York\",\n    \"state\": \"NY\",\n    \"postalCode\": \"10001\",\n    \"country\": \"USA\",\n    \"isDefault\": true\n  }\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v{{apiVersion}}/customers",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v{{apiVersion}}", "customers"]
+            }
+          }
+        },
+        {
+          "name": "Search Customer by Email",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v{{apiVersion}}/customers/search/email?email=john.doe@example.com",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v{{apiVersion}}", "customers", "search", "email"],
+              "query": [
+                {
+                  "key": "email",
+                  "value": "john.doe@example.com"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Get All Orders",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v{{apiVersion}}/orders?page=1&pageSize=10",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v{{apiVersion}}", "orders"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "pageSize",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Place Order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customerId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n  \"items\": [\n    {\n      \"productId\": \"3fa85f64-5717-4562-b3fc-2c963f66afa6\",\n      \"quantity\": 2,\n      \"unitPrice\": 999.99\n    }\n  ],\n  \"shippingAddress\": {\n    \"street\": \"123 Main St\",\n    \"city\": \"New York\",\n    \"state\": \"NY\",\n    \"postalCode\": \"10001\",\n    \"country\": \"USA\"\n  },\n  \"paymentMethod\": \"CreditCard\",\n  \"notes\": \"Test order\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v{{apiVersion}}/orders",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v{{apiVersion}}", "orders"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Test Endpoints",
+      "item": [
+        {
+          "name": "Test Command",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"message\": \"Hello from Postman!\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/test/command",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "test", "command"]
+            }
+          }
+        },
+        {
+          "name": "Test Query",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/test/query/123",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "test", "query", "123"]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

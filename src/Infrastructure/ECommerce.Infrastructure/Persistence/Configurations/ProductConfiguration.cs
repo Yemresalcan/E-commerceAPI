@@ -85,9 +85,9 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
             .OnDelete(DeleteBehavior.Restrict);
 
         // Configure relationship with ProductReviews
-        builder.HasMany<ProductReview>()
+        builder.HasMany(p => p.Reviews)
             .WithOne()
-            .HasForeignKey(pr => pr.ProductId)
+            .HasForeignKey("ProductId")
             .OnDelete(DeleteBehavior.Cascade);
 
         // Performance Optimized Indexes
@@ -118,7 +118,6 @@ public class ProductConfiguration : IEntityTypeConfiguration<Product>
         builder.Ignore(p => p.DomainEvents);
 
         // Ignore calculated properties
-        builder.Ignore(p => p.Reviews);
         builder.Ignore(p => p.AverageRating);
         builder.Ignore(p => p.ReviewCount);
         builder.Ignore(p => p.IsInStock);

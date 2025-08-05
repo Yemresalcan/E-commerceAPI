@@ -1,3 +1,6 @@
+using ECommerce.Application.Interfaces;
+using ECommerce.Domain.Aggregates;
+using ECommerce.Domain.Events;
 using ECommerce.Domain.Interfaces;
 using ECommerce.Infrastructure.Persistence;
 using Microsoft.EntityFrameworkCore;
@@ -11,12 +14,14 @@ namespace ECommerce.Infrastructure.Repositories;
 public class UnitOfWork : IUnitOfWork
 {
     private readonly ECommerceDbContext _context;
+    private readonly IEventBus _eventBus;
     private IDbContextTransaction? _currentTransaction;
     private bool _disposed;
 
-    public UnitOfWork(ECommerceDbContext context)
+    public UnitOfWork(ECommerceDbContext context, IEventBus eventBus)
     {
         _context = context ?? throw new ArgumentNullException(nameof(context));
+        _eventBus = eventBus ?? throw new ArgumentNullException(nameof(eventBus));
     }
 
     /// <summary>
@@ -36,7 +41,16 @@ public class UnitOfWork : IUnitOfWork
     {
         try
         {
-            return await _context.SaveChangesAsync(cancellationToken);
+            // Get domain events before saving
+            var domainEvents = GetDomainEvents();
+            
+            // Save changes to database
+            var result = await _context.SaveChangesAsync(cancellationToken);
+            
+            // Publish domain events after successful save
+            await PublishDomainEventsAsync(domainEvents, cancellationToken);
+            
+            return result;
         }
         catch (DbUpdateConcurrencyException ex)
         {
@@ -51,6 +65,38 @@ public class UnitOfWork : IUnitOfWork
             throw new InvalidOperationException(
                 "An error occurred while saving changes to the database.", 
                 ex);
+        }
+    }
+
+    private List<DomainEvent> GetDomainEvents()
+    {
+        var domainEvents = new List<DomainEvent>();
+        
+        var entities = _context.ChangeTracker.Entries<AggregateRoot>()
+            .Where(x => x.Entity.DomainEvents.Any())
+            .ToList();
+
+        Console.WriteLine($"[DEBUG] Found {entities.Count} entities with domain events");
+
+        foreach (var entity in entities)
+        {
+            Console.WriteLine($"[DEBUG] Entity {entity.Entity.GetType().Name} has {entity.Entity.DomainEvents.Count} domain events");
+            domainEvents.AddRange(entity.Entity.DomainEvents);
+            entity.Entity.ClearDomainEvents();
+        }
+
+        Console.WriteLine($"[DEBUG] Total domain events to publish: {domainEvents.Count}");
+        return domainEvents;
+    }
+
+    private async Task PublishDomainEventsAsync(List<DomainEvent> domainEvents, CancellationToken cancellationToken)
+    {
+        Console.WriteLine($"[DEBUG] Publishing {domainEvents.Count} domain events");
+        foreach (var domainEvent in domainEvents)
+        {
+            Console.WriteLine($"[DEBUG] Publishing event: {domainEvent.GetType().Name}");
+            await _eventBus.PublishAsync(domainEvent, cancellationToken);
+            Console.WriteLine($"[DEBUG] Event published successfully: {domainEvent.GetType().Name}");
         }
     }
 

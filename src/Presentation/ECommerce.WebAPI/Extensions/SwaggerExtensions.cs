@@ -104,21 +104,21 @@ public static class SwaggerExtensions
                 Type = SecuritySchemeType.ApiKey
             });
 
-            // Global security requirement (can be overridden per endpoint)
-            options.AddSecurityRequirement(new OpenApiSecurityRequirement
-            {
-                {
-                    new OpenApiSecurityScheme
-                    {
-                        Reference = new OpenApiReference
-                        {
-                            Type = ReferenceType.SecurityScheme,
-                            Id = "Bearer"
-                        }
-                    },
-                    Array.Empty<string>()
-                }
-            });
+            // Global security requirement (disabled for development)
+            // options.AddSecurityRequirement(new OpenApiSecurityRequirement
+            // {
+            //     {
+            //         new OpenApiSecurityScheme
+            //         {
+            //             Reference = new OpenApiReference
+            //             {
+            //                 Type = ReferenceType.SecurityScheme,
+            //                 Id = "Bearer"
+            //             }
+            //         },
+            //         Array.Empty<string>()
+            //     }
+            // });
 
             // Custom operation filters
             options.OperationFilter<SwaggerDefaultValues>();
