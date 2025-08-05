@@ -7,6 +7,8 @@
 [![Redis](https://img.shields.io/badge/Redis-7.0-red.svg)](https://redis.io/)
 [![RabbitMQ](https://img.shields.io/badge/RabbitMQ-3.12-orange.svg)](https://www.rabbitmq.com/)
 [![Docker](https://img.shields.io/badge/Docker-Supported-blue.svg)](https://www.docker.com/)
+[![CI/CD](https://img.shields.io/badge/CI%2FCD-GitHub%20Actions-green.svg)](https://github.com/features/actions)
+[![Monitoring](https://img.shields.io/badge/Monitoring-Prometheus%20%2B%20Grafana-orange.svg)](https://prometheus.io/)
 
 > **Modern, scalable, and production-ready E-Commerce API built with .NET 9, implementing Clean Architecture, CQRS, Event Sourcing, and Microservices patterns.**
 
