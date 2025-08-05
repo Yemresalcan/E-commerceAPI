@@ -14,6 +14,18 @@
 
 ---
 
+## 🚀 **Canlı Demo Ekran Görüntüleri**
+
+<div align="center">
+
+### 📊 **Kurumsal Monitoring Stack**
+![Monitoring Overview](assets/grafana.png)
+
+### 🎯 **Production-Ready Altyapı**
+![Infrastructure Monitoring](assets/prometeus.png)
+
+</div>
+
 ## 🌟 **Temel Özellikler**
 
 ### 🏗️ **Mimari & Tasarım Desenleri**
@@ -358,6 +370,32 @@ tests/
 
 ---
 
+## 📊 **Canlı Monitoring Ekran Görüntüleri**
+
+### 🎯 **Grafana Dashboard - Gerçek Zamanlı Sistem İzleme**
+![Grafana Dashboard](assets/grafana.png)
+*CPU, Memory, Network ve Disk metriklerini gerçek zamanlı gösteren profesyonel monitoring dashboard'u*
+
+### 📈 **Prometheus Metrik Toplama**
+![Prometheus Targets](assets/prometeus.png)
+*Prometheus'un tüm monitoring target'larından başarıyla metrik topladığını gösteren ekran*
+
+### 🐳 **cAdvisor ile Container İzleme**
+![cAdvisor Container Monitoring](assets/cAdvisor.png)
+*Detaylı container kaynak kullanımı ve performans metrikleri*
+
+### 🛠️ **Portainer ile Container Yönetimi**
+![Portainer Dashboard](assets/portanier.png)
+*Docker ortamları için profesyonel container yönetim arayüzü*
+
+### 🐰 **Message Queue İzleme**
+![RabbitMQ Management](assets/rabitmq.png)
+*Queue durumu ve mesaj akışını gösteren RabbitMQ yönetim arayüzü*
+
+### 🛒 **E-Ticaret API Dokümantasyonu**
+![API Documentation](assets/api_screenshot.png)
+*İnteraktif test özellikli kapsamlı Swagger/OpenAPI dokümantasyonu*
+
 ## 📊 **Performans Metrikleri**
 
 | Endpoint | Ort. Yanıt Süresi | İşlem Hacmi |
@@ -464,9 +502,9 @@ Bu proje MIT Lisansı altında lisanslanmıştır - detaylar için [LICENSE](LIC
 ## 👨‍💻 **Yazar**
 
 **Adınız Soyadınız**
-- GitHub: [@kullaniciadin](https://github.com/kullaniciadin)
-- LinkedIn: [LinkedIn Profiliniz](https://linkedin.com/in/profiliniz)
-- Email: email@example.com
+- GitHub: [@Yemresalcan](https://github.com/Yemresalcan)
+- LinkedIn: [yunusemresalcan](https://linkedin.com/in/yunusemresalcan)
+- Email: yunusemresalcan@gmail.com
 
 ---
 
@@ -490,8 +528,28 @@ Bu proje MIT Lisansı altında lisanslanmıştır - detaylar için [LICENSE](LIC
 
 ---
 
+## 🎯 **Production Ekran Görüntüleri Galerisi**
+
+<div align="center">
+
+| Monitoring Dashboard | Container Yönetimi | API Dokümantasyonu |
+|:---:|:---:|:---:|
+| ![Grafana](assets/grafana.png) | ![Portainer](assets/portanier.png) | ![API Docs](assets/api_screenshot.png) |
+| **Gerçek Zamanlı Metrikler** | **Container Kontrolü** | **İnteraktif API** |
+
+| Sistem Sağlığı | Message Queue | Container Analitik |
+|:---:|:---:|:---:|
+| ![Prometheus](assets/prometeus.png) | ![RabbitMQ](assets/rabitmq.png) | ![cAdvisor](assets/cAdvisor.png) |
+| **Target İzleme** | **Queue Yönetimi** | **Kaynak Analizi** |
+
+</div>
+
+---
+
 <div align="center">
 
 **⭐ Bu projeyi faydalı bulduysanız, lütfen yıldız verin! ⭐**
+
+**🚀 Production Hazır • 📊 Kurumsal Monitoring • 🛒 Ölçeklenebilir E-Ticaret**
 
 </div>

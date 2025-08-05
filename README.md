@@ -14,6 +14,18 @@
 
 ---
 
+## 🚀 **Live Demo Screenshots**
+
+<div align="center">
+
+### 📊 **Enterprise Monitoring Stack**
+![Monitoring Overview](assets/grafana.png)
+
+### 🎯 **Production-Ready Infrastructure**
+![Infrastructure Monitoring](assets/prometeus.png)
+
+</div>
+
 ## 🌟 **Key Features**
 
 ### 🏗️ **Architecture & Design Patterns**
@@ -358,6 +370,32 @@ tests/
 
 ---
 
+## 📊 **Live Monitoring Screenshots**
+
+### 🎯 **Grafana Dashboard - Real-time System Monitoring**
+![Grafana Dashboard](assets/grafana.png)
+*Professional monitoring dashboard showing CPU, Memory, Network, and Disk metrics in real-time*
+
+### 📈 **Prometheus Metrics Collection**
+![Prometheus Targets](assets/prometeus.png)
+*Prometheus successfully collecting metrics from all monitoring targets*
+
+### 🐳 **Container Monitoring with cAdvisor**
+![cAdvisor Container Monitoring](assets/cAdvisor.png)
+*Detailed container resource usage and performance metrics*
+
+### 🛠️ **Container Management with Portainer**
+![Portainer Dashboard](assets/portanier.png)
+*Professional container management interface for Docker environments*
+
+### 🐰 **Message Queue Monitoring**
+![RabbitMQ Management](assets/rabitmq.png)
+*RabbitMQ management interface showing queue status and message flow*
+
+### 🛒 **E-Commerce API Documentation**
+![API Documentation](assets/api_screenshot.png)
+*Comprehensive Swagger/OpenAPI documentation with interactive testing*
+
 ## 📊 **Performance Metrics**
 
 | Endpoint | Avg Response Time | Throughput |
@@ -465,8 +503,8 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Your Name**
 - GitHub: [@Yemresalcan](https://github.com/Yemresalcan)
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/yourprofile)
-- Email: your.email@example.com
+- LinkedIn: [Your LinkedIn](https://linkedin.com/in/yunusemresalcan)
+- Email: yunusemresalcan@gmail.com
 
 ---
 
@@ -490,8 +528,28 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 ---
 
+## 🎯 **Production Screenshots Gallery**
+
+<div align="center">
+
+| Monitoring Dashboard | Container Management | API Documentation |
+|:---:|:---:|:---:|
+| ![Grafana](assets/grafana.png) | ![Portainer](assets/portanier.png) | ![API Docs](assets/api_screenshot.png) |
+| **Real-time Metrics** | **Container Control** | **Interactive API** |
+
+| System Health | Message Queue | Container Analytics |
+|:---:|:---:|:---:|
+| ![Prometheus](assets/prometeus.png) | ![RabbitMQ](assets/rabitmq.png) | ![cAdvisor](assets/cAdvisor.png) |
+| **Target Monitoring** | **Queue Management** | **Resource Analytics** |
+
+</div>
+
+---
+
 <div align="center">
 
 **⭐ If you found this project helpful, please give it a star! ⭐**
+
+**🚀 Ready for Production • 📊 Enterprise Monitoring • 🛒 Scalable E-Commerce**
 
 </div>
