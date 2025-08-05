@@ -1,61 +1,53 @@
-# Use the official .NET 9 SDK image for building
+# Build stage
 FROM mcr.microsoft.com/dotnet/sdk:9.0 AS build
 WORKDIR /src
 
-# Copy solution file
-COPY ECommerce.Solution.sln ./
+# Copy csproj files and restore dependencies
+COPY ["src/Presentation/ECommerce.WebAPI/ECommerce.WebAPI.csproj", "src/Presentation/ECommerce.WebAPI/"]
+COPY ["src/Core/ECommerce.Application/ECommerce.Application.csproj", "src/Core/ECommerce.Application/"]
+COPY ["src/Core/ECommerce.Domain/ECommerce.Domain.csproj", "src/Core/ECommerce.Domain/"]
+COPY ["src/Infrastructure/ECommerce.Infrastructure/ECommerce.Infrastructure.csproj", "src/Infrastructure/ECommerce.Infrastructure/"]
+COPY ["src/Infrastructure/ECommerce.ReadModel/ECommerce.ReadModel.csproj", "src/Infrastructure/ECommerce.ReadModel/"]
 
-# Copy project files
-COPY src/Core/ECommerce.Domain/ECommerce.Domain.csproj src/Core/ECommerce.Domain/
-COPY src/Core/ECommerce.Application/ECommerce.Application.csproj src/Core/ECommerce.Application/
-COPY src/Infrastructure/ECommerce.Infrastructure/ECommerce.Infrastructure.csproj src/Infrastructure/ECommerce.Infrastructure/
-COPY src/Infrastructure/ECommerce.ReadModel/ECommerce.ReadModel.csproj src/Infrastructure/ECommerce.ReadModel/
-COPY src/Presentation/ECommerce.WebAPI/ECommerce.WebAPI.csproj src/Presentation/ECommerce.WebAPI/
+RUN dotnet restore "src/Presentation/ECommerce.WebAPI/ECommerce.WebAPI.csproj"
 
-# Copy test project files
-COPY tests/ECommerce.Domain.Tests/ECommerce.Domain.Tests.csproj tests/ECommerce.Domain.Tests/
-COPY tests/ECommerce.Application.Tests/ECommerce.Application.Tests.csproj tests/ECommerce.Application.Tests/
-COPY tests/ECommerce.Infrastructure.Tests/ECommerce.Infrastructure.Tests.csproj tests/ECommerce.Infrastructure.Tests/
-COPY tests/ECommerce.WebAPI.Tests/ECommerce.WebAPI.Tests.csproj tests/ECommerce.WebAPI.Tests/
-
-# Restore dependencies
-RUN dotnet restore
-
-# Copy the rest of the source code
+# Copy source code
 COPY . .
 
 # Build the application
-RUN dotnet build -c Release --no-restore
+WORKDIR "/src/src/Presentation/ECommerce.WebAPI"
+RUN dotnet build "ECommerce.WebAPI.csproj" -c Release -o /app/build
 
-# Publish the application
-RUN dotnet publish src/Presentation/ECommerce.WebAPI/ECommerce.WebAPI.csproj -c Release -o /app/publish --no-restore
+# Publish stage
+FROM build AS publish
+RUN dotnet publish "ECommerce.WebAPI.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
-# Use the official .NET 9 runtime image for the final stage
-FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS runtime
+# Runtime stage
+FROM mcr.microsoft.com/dotnet/aspnet:9.0 AS final
 WORKDIR /app
 
-# Create a non-root user for security
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+# Install curl for health checks
+RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
 
-# Copy the published application
-COPY --from=build /app/publish .
+# Create non-root user
+RUN addgroup --system --gid 1001 dotnet && \
+    adduser --system --uid 1001 --gid 1001 --shell /bin/false dotnet
 
-# Change ownership of the app directory to the appuser
-RUN chown -R appuser:appuser /app
+# Copy published application
+COPY --from=publish /app/publish .
 
-# Switch to the non-root user
-USER appuser
+# Create logs directory
+RUN mkdir -p /app/logs && chown -R dotnet:dotnet /app
 
-# Expose the port the app runs on
+# Switch to non-root user
+USER dotnet
+
+# Expose port
 EXPOSE 8080
-
-# Set environment variables
-ENV ASPNETCORE_URLS=http://+:8080
-ENV ASPNETCORE_ENVIRONMENT=Production
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=60s --retries=3 \
     CMD curl -f http://localhost:8080/health || exit 1
 
-# Set the entry point
+# Set entry point
 ENTRYPOINT ["dotnet", "ECommerce.WebAPI.dll"]

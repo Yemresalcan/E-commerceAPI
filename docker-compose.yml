@@ -1,26 +1,76 @@
 version: '3.8'
 
 services:
+  # PostgreSQL Database
   postgres:
-    image: postgres:16
+    image: postgres:16-alpine
     container_name: ecommerce-postgres
     environment:
       POSTGRES_DB: ecommerce
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
+      - ./scripts/init-db.sql:/docker-entrypoint-initdb.d/init-db.sql
     networks:
       - ecommerce-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d ecommerce"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # Elasticsearch
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
+    container_name: ecommerce-elasticsearch
+    environment:
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      - xpack.security.enrollment.enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+      - bootstrap.memory_lock=true
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Kibana (Optional - for Elasticsearch management)
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.11.0
+    container_name: ecommerce-kibana
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - xpack.security.enabled=false
+    ports:
+      - "5601:5601"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    networks:
+      - ecommerce-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5601/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  # Redis Cache
   redis:
     image: redis:7-alpine
     container_name: ecommerce-redis
@@ -28,56 +78,39 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
+      - ./config/redis.conf:/usr/local/etc/redis/redis.conf
+    command: redis-server /usr/local/etc/redis/redis.conf
+    networks:
+      - ecommerce-network
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
-    networks:
-      - ecommerce-network
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
-  elasticsearch:
-    image: docker.elastic.co/elasticsearch/elasticsearch:8.11.0
-    container_name: ecommerce-elasticsearch
-    environment:
-      - discovery.type=single-node
-      - xpack.security.enabled=false
-      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
-    ports:
-      - "9200:9200"
-      - "9300:9300"
-    volumes:
-      - elasticsearch_data:/usr/share/elasticsearch/data
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:9200/_cluster/health || exit 1"]
-      interval: 30s
-      timeout: 10s
-      retries: 3
-    restart: unless-stopped
-    networks:
-      - ecommerce-network
-
+  # RabbitMQ Message Broker
   rabbitmq:
-    image: rabbitmq:3-management-alpine
+    image: rabbitmq:3.12-management-alpine
     container_name: ecommerce-rabbitmq
     environment:
-      RABBITMQ_DEFAULT_USER: guest
-      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_USER: admin
+      RABBITMQ_DEFAULT_PASS: password
+      RABBITMQ_DEFAULT_VHOST: ecommerce
     ports:
-      - "5672:5672"
-      - "15672:15672"
+      - "5672:5672"   # AMQP port
+      - "15672:15672" # Management UI
     volumes:
       - rabbitmq_data:/var/lib/rabbitmq
+      - ./config/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf
+    networks:
+      - ecommerce-network
     healthcheck:
       test: ["CMD", "rabbitmq-diagnostics", "ping"]
       interval: 30s
       timeout: 10s
-      retries: 3
-    restart: unless-stopped
-    networks:
-      - ecommerce-network
+      retries: 5
 
+  # E-Commerce API Application
   ecommerce-api:
     build:
       context: .
@@ -86,57 +119,121 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:8080
-      - ConnectionStrings__DefaultConnection=Host=postgres;Database=ecommerce;Username=postgres;Password=postgres
+      - ConnectionStrings__DefaultConnection=Host=postgres;Database=ecommerce;Username=postgres;Password=password
       - ConnectionStrings__Redis=redis:6379
-      - ConnectionStrings__Elasticsearch=http://elasticsearch:9200
-      - ConnectionStrings__RabbitMQ=amqp://guest:guest@rabbitmq:5672/
-      - Logging__LogLevel__Default=Information
-      - Logging__LogLevel__Microsoft.AspNetCore=Warning
-      - Serilog__MinimumLevel__Default=Information
-      - Serilog__WriteTo__0__Name=Console
-      - Serilog__WriteTo__1__Name=File
-      - Serilog__WriteTo__1__Args__path=logs/ecommerce-.txt
-      - Serilog__WriteTo__1__Args__rollingInterval=Day
-      - Serilog__WriteTo__2__Name=Elasticsearch
-      - Serilog__WriteTo__2__Args__nodeUris=http://elasticsearch:9200
-      - Serilog__WriteTo__2__Args__indexFormat=ecommerce-logs-{0:yyyy.MM.dd}
-      - Cache__DefaultExpiration=00:15:00
-      - Cache__SlidingExpiration=00:05:00
-      - EventBus__ConnectionString=amqp://guest:guest@rabbitmq:5672/
-      - EventBus__RetryCount=3
-      - EventBus__RetryDelay=00:00:05
-      - Search__ConnectionString=http://elasticsearch:9200
-      - Search__DefaultIndex=ecommerce
-      - HealthChecks__UI__HealthChecksUri=http://localhost:8080/health
+      - Elasticsearch__Uri=http://elasticsearch:9200
+      - Elasticsearch__IndexPrefix=ecommerce
+      - RabbitMQ__HostName=rabbitmq
+      - RabbitMQ__UserName=admin
+      - RabbitMQ__Password=password
+      - RabbitMQ__VirtualHost=ecommerce
     ports:
       - "8080:8080"
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
       elasticsearch:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       rabbitmq:
         condition: service_healthy
+    networks:
+      - ecommerce-network
+    volumes:
+      - ./logs:/app/logs
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 60s
-    restart: unless-stopped
+
+  # Prometheus (Monitoring)
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: ecommerce-prometheus
+    ports:
+      - "9090:9090"
     volumes:
-      - ./logs:/app/logs
+      - ./config/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/etc/prometheus/console_libraries'
+      - '--web.console.templates=/etc/prometheus/consoles'
+      - '--storage.tsdb.retention.time=200h'
+      - '--web.enable-lifecycle'
     networks:
       - ecommerce-network
+
+  # Grafana (Visualization)
+  grafana:
+    image: grafana/grafana:latest
+    container_name: ecommerce-grafana
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3000:3000"
+    volumes:
+      - grafana_data:/var/lib/grafana
+      - ./config/grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./config/grafana/datasources:/etc/grafana/provisioning/datasources
+    depends_on:
+      - prometheus
+    networks:
+      - ecommerce-network
+
+  # Jaeger (Distributed Tracing)
+  jaeger:
+    image: jaegertracing/all-in-one:latest
+    container_name: ecommerce-jaeger
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    ports:
+      - "16686:16686" # Jaeger UI
+      - "14268:14268" # Jaeger collector HTTP
+      - "14250:14250" # Jaeger collector gRPC
+      - "4317:4317"   # OTLP gRPC receiver
+      - "4318:4318"   # OTLP HTTP receiver
+    networks:
+      - ecommerce-network
+
+  # Seq (Structured Logging)
+  seq:
+    image: datalust/seq:latest
+    container_name: ecommerce-seq
+    environment:
+      - ACCEPT_EULA=Y
+      - SEQ_FIRSTRUN_ADMINPASSWORDHASH=QH+z4r9PIWBVbYBKTBWIqnOeMdJT/5DW8SLKWqgfnXtjPTqGGQ== # admin/password
+    ports:
+      - "5341:80"
+    volumes:
+      - seq_data:/data
+    networks:
+      - ecommerce-network
+
+volumes:
+  postgres_data:
+    driver: local
+  elasticsearch_data:
+    driver: local
+  redis_data:
+    driver: local
+  rabbitmq_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+  seq_data:
+    driver: local
 
 networks:
   ecommerce-network:
     driver: bridge
-
-volumes:
-  postgres_data:
-  redis_data:
-  elasticsearch_data:
-  rabbitmq_data:
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
