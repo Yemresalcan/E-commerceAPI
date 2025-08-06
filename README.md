@@ -505,7 +505,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Your Name**
 - GitHub: [@Yemresalcan](https://github.com/Yemresalcan)
-- LinkedIn: [Your LinkedIn](https://linkedin.com/in/yunusemresalcan)
+- LinkedIn: [Yunusemresalcan](https://linkedin.com/in/yunusemresalcan)
 - Email: yunusemresalcan@gmail.com
 
 ---
